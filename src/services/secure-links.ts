@@ -23,7 +23,8 @@ export async function createSecureLink(
     streamName: string, 
     instanceId: string = 'default',
     actorName: string = 'לא ידוע',
-    appHost?: string
+    appHost?: string,
+    source: 'app' | 'bot' = 'app'
 ): Promise<{ success: boolean, id?: string, error?: string }> {
     try {
         const id = crypto.randomBytes(12).toString('hex'); 
@@ -42,13 +43,15 @@ export async function createSecureLink(
             linkData.appHost = appHost;
         }
 
+        linkData.createdVia = source;
+
         await getLinksCollection().doc(id).set(linkData);
 
         await logEvent('SECURE_LINK_CREATED', `משתמש ${actorName} יצר קישור צפייה חדש לשידור: ${streamName}`);
 
         // Pass the appHost to the notification so the correct domain is used
         try {
-            await notifyAdminOnSecureLinkCreated(streamName, actorName, id, appHost);
+            await notifyAdminOnSecureLinkCreated(streamName, actorName, id, appHost, source);
         } catch (notifyError) {
             console.error('Secure link created but Telegram notification failed:', notifyError);
         }

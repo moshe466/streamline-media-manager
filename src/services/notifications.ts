@@ -119,11 +119,35 @@ export async function notifyAdminOnBackupSuccess(backupType: 'אוטומטי' | 
     await sendTelegramLogMessage(message, 'onBackupSuccess');
 }
 
-export async function notifyAdminOnSecureLinkCreated(streamName: string, actorName: string, linkId: string, appHost?: string) {
-    const host = appHost || 'app.mizrachitv.co.il';
+export async function notifyAdminOnSecureLinkCreated(
+    streamName: string,
+    actorName: string,
+    linkId: string,
+    appHost?: string,
+    source: 'app' | 'bot' = 'app'
+) {
+    const host = appHost || 'mcr.uhdrones.org.il';
     const linkUrl = `https://${host}/watch/${linkId}`;
-    const message = `🔗 <b>נוצר קישור צפייה מאובטח</b>\n\nהמשתמש <b>${escapeHtml(actorName)}</b> יצר קישור לשידור <code>${escapeHtml(streamName)}</code>.\n\n<b>הקישור:</b>\n${linkUrl}`;
-    await sendTelegramLogMessage(message, 'onSecureLinkCreated');
+
+    const title = source === 'bot'
+        ? '🔗 לינק נוצר מהבוט'
+        : '🔗 לינק נוצר באמצעות האפליקציה';
+
+    const groupMessage =
+        `${title}\n\n` +
+        `👤 יוצר: ${escapeHtml(actorName)}\n` +
+        `📡 שידור: ${escapeHtml(streamName)}\n\n` +
+        `לינק:\n${linkUrl}`;
+
+    const adminMessage =
+        `🔗 <b>נוצר קישור צפייה מאובטח</b>\n\n` +
+        `<b>מקור:</b> ${source === 'bot' ? 'בוט' : 'אפליקציה'}\n` +
+        `<b>יוצר:</b> ${escapeHtml(actorName)}\n` +
+        `<b>שידור:</b> <code>${escapeHtml(streamName)}</code>\n\n` +
+        `<b>לינק:</b>\n${linkUrl}`;
+
+    await sendTelegramLogMessage(adminMessage, 'onSecureLinkCreated');
+    await sendTelegramMessage(LINKS_GROUP_CHAT_ID, groupMessage, { parse_mode: 'HTML' });
 }
 
 export async function notifyAdminOnSecureLinkDeleted(streamName: string, actorName: string) {

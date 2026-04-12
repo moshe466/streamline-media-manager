@@ -656,7 +656,7 @@ export async function POST(request: Request) {
             String(from.id);
 
           console.log('CREATE LINK DEBUG', { payload, streamName, actorName, fromId: from.id });
-          const result = await createSecureLink(streamName, 'default', actorName);
+          const result = await createSecureLink(streamName, 'default', actorName, 'mcr.uhdrones.org.il', 'bot');
           console.log('CREATE LINK RESULT', result);
 
           if (!result.success || !result.id) {
@@ -664,7 +664,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true });
           }
 
-          const watchUrl = `https://app.mizrachitv.co.il/watch/${result.id}`;
+          const watchUrl = `https://mcr.uhdrones.org.il/watch/${result.id}`;
 
           await sendTelegramMessage(
             chatId,
