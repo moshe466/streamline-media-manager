@@ -3,7 +3,7 @@
 import { getDb } from '@/lib/firebase-admin';
 import * as crypto from 'crypto';
 import { logEvent } from './logger';
-import { notifyAdminOnSecureLinkCreated, notifyAdminOnSecureLinkDeleted } from './notifications';
+import { notifyAdminOnSecureLinkDeleted } from './notifications';
 
 const getLinksCollection = () => getDb().collection('secure_links');
 
@@ -49,13 +49,8 @@ export async function createSecureLink(
 
         await logEvent('SECURE_LINK_CREATED', `משתמש ${actorName} יצר קישור צפייה חדש לשידור: ${streamName}`);
 
-        // Pass the appHost to the notification so the correct domain is used
-        try {
-            await notifyAdminOnSecureLinkCreated(streamName, actorName, id, appHost, source);
-        } catch (notifyError) {
-            console.error('Secure link created but Telegram notification failed:', notifyError);
-        }
-
+        // Telegram announcement is handled only by links-poller
+        // This prevents duplicate announcements when a link is created.
         return { success: true, id };
     } catch (error) {
         console.error("Error creating secure link:", error);
