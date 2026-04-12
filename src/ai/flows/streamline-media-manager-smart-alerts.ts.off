@@ -1,0 +1,72 @@
+/*
+'use server';
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+const SmartAlertInputSchema = z.object({
+  systemStats: z.object({
+    totalStreams: z.number(),
+    onlineStreams: z.number(),
+    offlineStreams: z.number(),
+    cpuUsage: z.number().describe('CPU usage percentage (e.g., 85.5)'),
+    memoryUsage: z.number().describe('Memory usage percentage (e.g., 60.2)'),
+  }).describe('Current system statistics.'),
+  recentLogs: z.array(z.object({
+    timestamp: z.string(),
+    type: z.string(),
+    details: z.string(),
+  })).describe('Recent system logs to help identify potential issues.'),
+});
+export type SmartAlertInput = z.infer<typeof SmartAlertInputSchema>;
+
+const SmartAlertOutputSchema = z.object({
+  isAlertRequired: z.boolean().describe('Whether an alert should be triggered based on the input data.'),
+  alertSeverity: z.enum(['info', 'warning', 'critical']).describe('The severity of the alert if one is required.'),
+  alertTitle: z.string().describe('A concise, descriptive title for the alert.'),
+  alertDescription: z.string().describe('A detailed explanation of the issue, what it means, and suggested next steps.'),
+  suggestedAction: z.string().describe('A specific, actionable suggestion for the administrator.'),
+});
+export type SmartAlertOutput = z.infer<typeof SmartAlertOutputSchema>;
+
+
+const smartAlertsPrompt = ai.definePrompt({
+    name: 'smartAlertsPrompt',
+    input: { schema: SmartAlertInputSchema },
+    output: { schema: SmartAlertOutputSchema },
+    prompt: `You are an expert system administrator for a Flussonic media server. Your task is to analyze system stats and logs to determine if an alert needs to be sent to the human administrator.
+
+    Analyze the following system statistics and logs:
+
+    **System Stats:**
+    - Total Streams: {{{systemStats.totalStreams}}}
+    - Online Streams: {{{systemStats.onlineStreams}}}
+    - CPU Usage: {{{systemStats.cpuUsage}}}%
+    - Memory Usage: {{{systemStats.memoryUsage}}}%
+
+    **Recent Logs:**
+    {{#each recentLogs}}
+    - [{{timestamp}}] ({{type}}): {{details}}
+    {{/each}}
+
+    **Your Analysis Rules:**
+    1.  **Critical Alert:** Trigger if CPU or Memory usage is above 90%, or if there are multiple "STREAM_UPDATE_FAILURE" or "BACKUP_RESTORE_FAILURE" logs in rapid succession.
+    2.  **Warning Alert:** Trigger if CPU or Memory usage is between 75% and 90%, or if a significant number of streams are offline unexpectedly (e.g., more than 20% of total streams are offline when they should be online), or if there are repeated "LOGO_DELETE_FAILURE" or "STREAM_DELETE_FAILURE" logs.
+    3.  **Info Alert:** Trigger for non-critical but noteworthy events, like a successful backup completion or a user being created.
+    4.  **No Alert:** If the system is running smoothly according to the stats and logs, set 'isAlertRequired' to false and provide a reassuring status update in the description.
+
+    Based on your analysis, provide a JSON output with the required fields. The title and description should be in clear, human-readable language. The suggested action should be a concrete step the administrator can take.`,
+});
+
+export const smartAlertsFlow = ai.defineFlow(
+  {
+    name: 'smartAlertsFlow',
+    inputSchema: SmartAlertInputSchema,
+    outputSchema: SmartAlertOutputSchema,
+  },
+  async (input) => {
+    const { output } = await smartAlertsPrompt.run({ input });
+    return output;
+  }
+);
+*/

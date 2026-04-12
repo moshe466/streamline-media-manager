@@ -1,0 +1,15 @@
+/*
+'use server';
+
+import {genkit, type Plugin} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
+
+const plugins: Plugin[] = [googleAI()];
+if (process.env.NODE_ENV === 'development') {
+}
+
+export const ai = genkit({
+  plugins: [googleAI()],
+  model: 'googleai/gemini-pro',
+});
+*/

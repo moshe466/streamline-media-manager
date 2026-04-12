@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+  
+    // Default-deny all access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+    
+    // Allow public read for default logos used across the app
+    match /default-logos/{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Rules for Client-specific logos
+    match /client-logos/{clientId}/{logoName} {
+      // A client can write (upload/delete) to their own logo folder.
+      // We check if the request auth uid matches the folder's clientId.
+      allow write: if request.auth != null && request.auth.uid == clientId;
+      
+      // Anyone authenticated can read the logo. This is a simplification.
+      // A stricter rule would check if the user is a viewer of that client.
+      // For now, this is secure enough as the URL is not public.
+      allow read: if request.auth != null;
+    }
+    
+    // Rules for other client documents
+    match /client-documents/{clientId}/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == clientId;
+    }
+    
+    // Rules for payment receipts
+    match /receipts/{clientId}/{receipt} {
+       allow read, write: if request.auth != null && request.auth.uid == clientId;
+    }
+    
+     // Rules for tour assets (publicly readable)
+    match /tour-assets/{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Rules for profile pictures
+    match /profile-pictures/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      // Allow any authenticated user to read profile pictures
+      // This is useful for showing user avatars across the app.
+      allow read: if request.auth != null;
+    }
+  }
+}
