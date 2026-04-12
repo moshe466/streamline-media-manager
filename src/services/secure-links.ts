@@ -30,14 +30,17 @@ export async function createSecureLink(
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 5 * 60 * 60 * 1000); 
 
-        const linkData = {
+        const linkData: any = {
             streamName,
             instanceId,
             createdAt: now,
             expiresAt,
             createdBy: actorName,
-            appHost,
         };
+
+        if (appHost) {
+            linkData.appHost = appHost;
+        }
 
         await getLinksCollection().doc(id).set(linkData);
 
