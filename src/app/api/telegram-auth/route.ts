@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 
 import { NextResponse } from 'next/server';
 import { sendTelegramLogMessage, sendTelegramMessage, getSession, createOrUpdateSession, deleteSession, sendTelegramMessageWithPhoneKeyboard, answerTelegramCallbackQuery, getTelegramChatMember, createTelegramSingleUseInviteLink } from '@/services/telegram';
@@ -321,6 +321,37 @@ export async function POST(request: Request) {
               }
             }
           );
+        }
+
+        return NextResponse.json({ success: true });
+      }
+
+      if (data === 'link_admin:system_status') {
+        if (!isSuperAdmin) {
+          return NextResponse.json({ success: true });
+        }
+
+        const checkProc = (pattern: string) => {
+          try {
+            const out = execSync(`ps aux | grep "${pattern}" | grep -v grep`, { encoding: 'utf8' }).trim();
+            return out ? '✅ רץ' : '❌ לא רץ';
+          } catch {
+            return '❌ לא רץ';
+          }
+        };
+
+        const nextStatus = checkProc('next dev');
+        const streamPollerStatus = checkProc('stream-poller');
+        const linksPollerStatus = checkProc('links-poller');
+
+        let message =
+          '📊 סטטוס מערכת\n\n' +
+          `🌐 Next.js: ${nextStatus}\n` +
+          `📡 Stream Poller: ${streamPollerStatus}\n` +
+          `🔗 Links Poller: ${linksPollerStatus}\n`;
+
+        if (chatId) {
+          await sendTelegramMessage(chatId, message);
         }
 
         return NextResponse.json({ success: true });
@@ -751,6 +782,7 @@ const isAdminCommand =
                           [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
                           [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
                           [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
+                          [{ text: '📊 סטטוס מערכת', callback_data: 'link_admin:system_status' }],
                           [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }],
                           [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }]
                       ]
