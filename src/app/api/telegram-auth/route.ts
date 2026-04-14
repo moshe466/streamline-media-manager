@@ -12,7 +12,7 @@ import { getDb } from '@/lib/firebase-admin';
 import type { Client } from '@/services/clients';
 import { getSystemCredentials, getUserById, updateUser } from '@/services/users';
 import { getAuthCodeDetails } from '@/services/telegram-auth';
-import { createSecureLink } from '@/services/secure-links';
+import { createSecureLink, listRecentSecureLinks, deleteSecureLink } from '@/services/secure-links';
 
 
 export const dynamic = 'force-dynamic';
@@ -370,9 +370,15 @@ export async function POST(request: Request) {
         }
 
         let restartTime = 'לא ידוע';
+        let restartStatus = 'לא ידוע';
+
         try {
-          const stat = execSync('stat -c %y restart.log 2>/dev/null || true', { encoding: 'utf8' }).trim();
-          if (stat) restartTime = stat;
+          const raw = execSync('cat restart-status.json 2>/dev/null || true', { encoding: 'utf8' }).trim();
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            restartStatus = parsed.status || 'לא ידוע';
+            restartTime = parsed.finishedAt || parsed.startedAt || 'לא ידוע';
+          }
         } catch {}
 
         const totalMemGb = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
@@ -389,6 +395,7 @@ export async function POST(request: Request) {
           `🎥 שידורים באוויר: ${onlineStreamsCount}\n` +
           `🔗 לינקים פעילים: ${activeLinksCount}\n\n` +
           `🕒 הפעלה אחרונה: ${restartTime}\n` +
+          `♻️ סטטוס restart: ${restartStatus}\n` +
           `💾 זיכרון בשימוש: ${usedMemGb}GB / ${totalMemGb}GB\n` +
           `⚙️ עומס מערכת: ${load}\n` +
           `⏱ Uptime שרת: ${uptimeHours} שעות\n`;
@@ -400,32 +407,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true });
       }
 
-
-        const checkProc = (pattern: string) => {
-          try {
-            const out = execSync(`ps aux | grep "${pattern}" | grep -v grep`, { encoding: 'utf8' }).trim();
-            return out ? '✅ רץ' : '❌ לא רץ';
-          } catch {
-            return '❌ לא רץ';
-          }
-        };
-
-        const nextStatus = checkProc('next dev');
-        const streamPollerStatus = checkProc('stream-poller');
-        const linksPollerStatus = checkProc('links-poller');
-
-        let message =
-          '📊 סטטוס מערכת\n\n' +
-          `🌐 Next.js: ${nextStatus}\n` +
-          `📡 Stream Poller: ${streamPollerStatus}\n` +
-          `🔗 Links Poller: ${linksPollerStatus}\n`;
-
-        if (chatId) {
-          await sendTelegramMessage(chatId, message);
-        }
-
-        return NextResponse.json({ success: true });
-      }
 
       if (data === 'link_admin:restart_system') {
         if (!isSuperAdmin) {
@@ -445,6 +426,59 @@ export async function POST(request: Request) {
         });
 
         child.unref();
+
+        return NextResponse.json({ success: true });
+      }
+
+      if (data === 'link_admin:recent_links') {
+        if (!isSuperAdmin) {
+          return NextResponse.json({ success: true });
+        }
+
+        if (!chatId) {
+          return NextResponse.json({ success: true });
+        }
+
+        const links = await listRecentSecureLinks(10);
+
+        if (!links.length) {
+          await sendTelegramMessage(chatId, '📭 אין לינקים אחרונים להצגה.');
+          return NextResponse.json({ success: true });
+        }
+
+        for (const link of links) {
+          const host = (link as any).appHost || 'mcr.uhdrones.org.il';
+          const watchUrl = `https://${host}/watch/${link.id}`;
+          const actorName = (link as any).createdBy || 'לא ידוע';
+          const source = (link as any).createdVia === 'bot' ? 'בוט' : 'אפליקציה';
+          const createdAt = link.createdAt instanceof Date ? link.createdAt.toISOString() : String(link.createdAt || '');
+
+          const text =
+            `📋 <b>לינק אחרון</b>\n\n` +
+            `👤 <b>יוצר:</b> ${actorName}\n` +
+            `📡 <b>שידור:</b> ${link.streamName}\n` +
+            `🧩 <b>מקור:</b> ${source}\n` +
+            `🕒 <b>נוצר:</b> ${createdAt}\n\n` +
+            `<b>לינק:</b>\n${watchUrl}`;
+
+          await sendTelegramMessage(
+            chatId,
+            text,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🔗 פתח לינק', url: watchUrl }
+                  ],
+                  [
+                    { text: '🗑️ מחק לינק', callback_data: `delete_secure_link:${link.id}` }
+                  ]
+                ]
+              }
+            }
+          );
+        }
 
         return NextResponse.json({ success: true });
       }
@@ -565,6 +599,26 @@ export async function POST(request: Request) {
           'בחר משתמש להסרת הרשאה:',
           { reply_markup: { inline_keyboard } }
         );
+        return NextResponse.json({ success: true });
+      }
+
+      if (data.startsWith('delete_secure_link:')) {
+        if (!isSuperAdmin) {
+          return NextResponse.json({ success: true });
+        }
+
+        const linkId = data.split(':')[1];
+
+        const result = await deleteSecureLink(linkId, from.first_name || from.username || String(from.id));
+
+        if (chatId) {
+          if (result.success) {
+            await sendTelegramMessage(chatId, `✅ הלינק ${linkId} נמחק בהצלחה.`);
+          } else {
+            await sendTelegramMessage(chatId, `❌ מחיקת הלינק ${linkId} נכשלה.`);
+          }
+        }
+
         return NextResponse.json({ success: true });
       }
 
@@ -849,6 +903,7 @@ const isAdminCommand =
                       inline_keyboard: [
                           [{ text: '➕ שלח לינק לבקשת הרשאה', callback_data: 'link_admin:send_request_link' }],
                           [{ text: '⏳ בקשות ממתינות', callback_data: 'link_admin:pending_requests' }],
+                          [{ text: '📋 לינקים אחרונים', callback_data: 'link_admin:recent_links' }],
                           [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
                           [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
                           [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
