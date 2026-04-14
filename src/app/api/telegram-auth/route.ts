@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 
 import { NextResponse } from 'next/server';
 import { sendTelegramLogMessage, sendTelegramMessage, getSession, createOrUpdateSession, deleteSession, sendTelegramMessageWithPhoneKeyboard, answerTelegramCallbackQuery, getTelegramChatMember, createTelegramSingleUseInviteLink } from '@/services/telegram';
@@ -321,6 +322,28 @@ export async function POST(request: Request) {
             }
           );
         }
+
+        return NextResponse.json({ success: true });
+      }
+
+      if (data === 'link_admin:restart_system') {
+        if (!isSuperAdmin) {
+          return NextResponse.json({ success: true });
+        }
+
+        if (chatId) {
+          await sendTelegramMessage(chatId, '♻️ התקבלה פקודת דריסה והפעלה מחדש. המערכת תופעל מחדש בעוד כ-2 שניות...');
+        }
+
+        const cmd = "sleep 2; bash src/scripts/restart-system.sh > restart.log 2>&1";
+        const child = spawn('bash', ['-lc', cmd], {
+          detached: true,
+          stdio: 'ignore',
+          cwd: process.cwd(),
+          env: process.env,
+        });
+
+        child.unref();
 
         return NextResponse.json({ success: true });
       }
@@ -727,7 +750,9 @@ const isAdminCommand =
                           [{ text: '⏳ בקשות ממתינות', callback_data: 'link_admin:pending_requests' }],
                           [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
                           [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
-                          [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }]
+                          [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
+                          [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }],
+                          [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }]
                       ]
                   }
               }
