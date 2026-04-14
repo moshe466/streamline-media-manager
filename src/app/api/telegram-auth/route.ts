@@ -1,3 +1,5 @@
+import { getStreams } from '@/services/flussonic';
+import os from 'os';
 import { spawn, execSync } from 'child_process';
 
 import { NextResponse } from 'next/server';
@@ -330,6 +332,74 @@ export async function POST(request: Request) {
         if (!isSuperAdmin) {
           return NextResponse.json({ success: true });
         }
+
+        const checkProc = (pattern: string) => {
+          try {
+            const out = execSync(`ps aux | grep "${pattern}" | grep -v grep`, { encoding: 'utf8' }).trim();
+            return out ? '✅ רץ' : '❌ לא רץ';
+          } catch {
+            return '❌ לא רץ';
+          }
+        };
+
+        const nextStatus = checkProc('next dev');
+        const streamPollerStatus = checkProc('stream-poller');
+        const linksPollerStatus = checkProc('links-poller');
+
+        const db = getDb();
+
+        let activeLinksCount = 0;
+        try {
+          const now = new Date();
+          const activeLinksSnap = await db
+            .collection('secure_links')
+            .where('expiresAt', '>', now)
+            .get();
+
+          activeLinksCount = activeLinksSnap.size;
+        } catch (e) {
+          console.error('system_status activeLinksCount error:', e);
+        }
+
+        let onlineStreamsCount = 0;
+        try {
+          const streams = await getStreams();
+          onlineStreamsCount = (streams || []).filter((s: any) => s.status === 'online').length;
+        } catch (e) {
+          console.error('system_status onlineStreamsCount error:', e);
+        }
+
+        let restartTime = 'לא ידוע';
+        try {
+          const stat = execSync('stat -c %y restart.log 2>/dev/null || true', { encoding: 'utf8' }).trim();
+          if (stat) restartTime = stat;
+        } catch {}
+
+        const totalMemGb = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
+        const freeMemGb = (os.freemem() / 1024 / 1024 / 1024).toFixed(1);
+        const usedMemGb = (Number(totalMemGb) - Number(freeMemGb)).toFixed(1);
+        const load = os.loadavg()[0].toFixed(2);
+        const uptimeHours = (os.uptime() / 3600).toFixed(1);
+
+        const message =
+          '📊 סטטוס מערכת\n\n' +
+          `🌐 Next.js: ${nextStatus}\n` +
+          `📡 Stream Poller: ${streamPollerStatus}\n` +
+          `🔗 Links Poller: ${linksPollerStatus}\n\n` +
+          `🎥 שידורים באוויר: ${onlineStreamsCount}\n` +
+          `🔗 לינקים פעילים: ${activeLinksCount}\n\n` +
+          `🕒 הפעלה אחרונה: ${restartTime}\n` +
+          `💾 זיכרון בשימוש: ${usedMemGb}GB / ${totalMemGb}GB\n` +
+          `⚙️ עומס מערכת: ${load}\n` +
+          `⏱ Uptime שרת: ${uptimeHours} שעות\n`;
+
+        if (chatId) {
+          await sendTelegramMessage(chatId, message);
+        }
+
+        return NextResponse.json({ success: true });
+      }
+
 
         const checkProc = (pattern: string) => {
           try {
@@ -783,7 +853,6 @@ const isAdminCommand =
                           [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
                           [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
                           [{ text: '📊 סטטוס מערכת', callback_data: 'link_admin:system_status' }],
-                          [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }],
                           [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }]
                       ]
                   }
