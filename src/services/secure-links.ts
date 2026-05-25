@@ -175,3 +175,31 @@ export async function deleteSecureLink(linkId: string, actorName: string = 'לא
         return { success: false, error: (error as Error).message };
     }
 }
+
+export async function listRecentSecureLinks(limitCount: number = 10): Promise<SecureLink[]> {
+    try {
+        const snapshot = await getLinksCollection()
+            .orderBy('createdAt', 'desc')
+            .limit(limitCount)
+            .get();
+
+        if (snapshot.empty) return [];
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                streamName: data.streamName,
+                instanceId: data.instanceId,
+                expiresAt: (data.expiresAt as any)?.toDate ? (data.expiresAt as any).toDate() : new Date(data.expiresAt),
+                createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(data.createdAt),
+                appHost: data.appHost,
+                createdBy: data.createdBy,
+                createdVia: data.createdVia,
+            } as any;
+        });
+    } catch (error) {
+        console.error('Error fetching recent secure links:', error);
+        return [];
+    }
+}

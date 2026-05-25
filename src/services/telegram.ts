@@ -98,6 +98,10 @@ export async function sendTelegramLogMessage(text: string, settingKey?: string, 
 
         for (const adminDoc of allAdminsSnapshot.docs) {
             const admin = adminDoc.data();
+            
+            // 🔴 Master switch - אם כבוי, לא שולחים בכלל
+            if (admin.adminTelegramEnabled === false) continue;
+
             const adminChatId = admin.telegramChatId; 
             if (adminChatId) {
                  try {

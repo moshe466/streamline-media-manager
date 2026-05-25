@@ -17,6 +17,7 @@ export default function AdminTelegramSettingsPage() {
     
     const [adminUser, setAdminUser] = useState<User | null>(null);
     const [adminSettings, setAdminSettings] = useState<AdminNotificationSettings>({});
+    const [adminTelegramEnabled, setAdminTelegramEnabled] = useState(true);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     const fetchAdminData = useCallback(async () => {
@@ -26,6 +27,7 @@ export default function AdminTelegramSettingsPage() {
         if (user) {
             setAdminUser(user);
             setAdminSettings(user.adminNotificationSettings || {});
+            setAdminTelegramEnabled(user.adminTelegramEnabled !== false);
         }
     }, []);
     
@@ -42,7 +44,7 @@ export default function AdminTelegramSettingsPage() {
         if (!adminUser) return;
         setIsSavingSettings(true);
         try {
-            await updateUser(adminUser.id, { adminNotificationSettings: adminSettings });
+            await updateUser(adminUser.id, { adminNotificationSettings: adminSettings, adminTelegramEnabled });
             toast({ title: "הגדרות נשמרו", description: "העדפות ההתראות שלך עודכנו."});
         } catch (error) {
              toast({ variant: 'destructive', title: 'שגיאה בשמירת הגדרות' });
@@ -93,6 +95,11 @@ export default function AdminTelegramSettingsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            <div className="flex items-center justify-between p-3 border rounded-md bg-muted/40">
+                                <Label htmlFor="adminTelegramEnabled" className="pr-2 font-semibold">הפעלת התראות טלגרם למנהל</Label>
+                                <Switch id="adminTelegramEnabled" checked={adminTelegramEnabled} onCheckedChange={(checked) => setAdminTelegramEnabled(checked)} />
+                            </div>
+
                             <div>
                                 <h3 className="font-semibold text-base border-b pb-2 mb-3 flex items-center justify-start gap-2">
                                     <Server className="h-5 w-5 text-primary"/>
@@ -152,7 +159,20 @@ export default function AdminTelegramSettingsPage() {
                                 {adminUser?.telegramChatId ? 'התחבר מחדש / החלף משתמש' : 'התחבר לבוט'}
                             </Button>
                         </CardContent>
-                         {adminUser?.telegramChatId && (
+                         
+                         <div className="pt-3">
+                            <a
+                              href={`https://t.me/Mizrachi_TV_bot?start=${adminTelegramEnabled ? 'admin_stop' : 'admin_resume'}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button variant={adminTelegramEnabled ? 'destructive' : 'default'}>
+                                {adminTelegramEnabled ? 'כבה התראות דרך טלגרם' : 'הפעל התראות דרך טלגרם'}
+                              </Button>
+                            </a>
+                         </div>
+
+{adminUser?.telegramChatId && (
                             <CardFooter className="text-xs text-green-400 justify-center">
                                 מחובר לחשבון: {adminUser.telegramChatId}
                             </CardFooter>

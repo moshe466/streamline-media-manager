@@ -200,3 +200,41 @@ export async function resendVerificationEmail(auth: AuthContext, clientId: strin
 export async function saveClientSocialTokens(clientId: string, tokens: SocialTokens): Promise<void> {
     await getClientsCollection().doc(clientId.toLowerCase()).update({ socialTokens: tokens });
 }
+
+
+export async function updateClientTelegramNotificationsEnabled(
+  clientId: string,
+  enabled: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await getClientsCollection().doc(clientId.toLowerCase()).update({
+      telegramNotificationsEnabled: enabled
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function updateClientTelegramConnection(
+  clientId: string,
+  data: {
+    telegramChats: TelegramChat[];
+    telegramNotificationsEnabled?: boolean;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const payload: Record<string, unknown> = {
+      telegramChats: data.telegramChats,
+    };
+
+    if (typeof data.telegramNotificationsEnabled === 'boolean') {
+      payload.telegramNotificationsEnabled = data.telegramNotificationsEnabled;
+    }
+
+    await getClientsCollection().doc(clientId.toLowerCase()).update(payload);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}

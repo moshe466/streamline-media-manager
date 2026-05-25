@@ -46,6 +46,7 @@ export type User = {
     otp: string;
     permissions?: UserPermissions;
     adminNotificationSettings?: AdminNotificationSettings;
+    adminTelegramEnabled?: boolean;
     telegramChatId?: string;
     activeSessionId?: string;
     multiviewSettings?: MultiviewSettings;
@@ -134,7 +135,7 @@ export async function addUser(auth: AuthContext, userData: Pick<User, 'nickname'
 }
 
 
-export async function updateUser(userId: string, updates: Partial<Pick<User, 'nickname' | 'role' | 'adminNotificationSettings' | 'telegramChatId' | 'multiviewSettings'>>) {
+export async function updateUser(userId: string, updates: Partial<Pick<User, 'nickname' | 'role' | 'adminNotificationSettings' | 'telegramChatId' | 'multiviewSettings' | 'adminTelegramEnabled'>>) {
     try {
         const userRef = getUsersCollection().doc(userId.toLowerCase());
         await userRef.update(updates);

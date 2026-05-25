@@ -186,7 +186,7 @@ export default function ClientNotificationsPage() {
                     ) : (
                          <>
                             <div className="flex items-center justify-between p-3 border rounded-lg">
-                                 <a href={`https://t.me/Mizrachi_TV_bot?start=${notificationsEnabled ? 'stop' : 'start'}`} target="_blank" rel="noopener noreferrer">
+                                 <a href={`https://t.me/Mizrachi_TV_bot?start=${notificationsEnabled ? 'client_stop' : 'client_resume'}`} target="_blank" rel="noopener noreferrer">
                                      <Button variant={notificationsEnabled ? 'destructive' : 'default'}>
                                         {notificationsEnabled ? <StopCircle className="ml-2 h-4 w-4" /> : <PlayCircle className="ml-2 h-4 w-4" />}
                                         {notificationsEnabled ? 'הפסק התראות' : 'הפעל התראות'}
