@@ -7,6 +7,7 @@ import { getStreams, checkFlussonicStatus } from "@/services/flussonic";
 import { testFirestoreConnectionAction } from "@/actions/test-firestore-action";
 import { RealtimeStatusGraphs } from "@/components/dashboard/realtime-status-graphs";
 import { getSystemCredentials } from "@/services/users";
+import { LinkViewersCard } from "@/components/dashboard/link-viewers-card";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,6 +43,7 @@ export default async function AdminDashboardPage() {
         isDbConnected={isDbConnected} 
       />
       <StatsCards streams={streams} />
+      <LinkViewersCard />
       <QuickLinksCard />
     </div>
   );

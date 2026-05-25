@@ -7,6 +7,7 @@ import { Loader2, Tv, AlertTriangle } from 'lucide-react';
 import { getFlussonicConnectionDetails } from '@/services/flussonic';
 import { getAndViewSecureLink } from '@/services/secure-links';
 import { Logo } from '@/components/logo';
+import { LinkViewHeartbeat } from '@/components/link-view-heartbeat';
 
 const VideoPlayer = ({ streamName, host }: { streamName: string, host: string }) => {
     if (!host) return <div className="w-full h-full bg-black rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>;
@@ -98,6 +99,7 @@ function WatchPageContent() {
     
     return (
         <div className="h-screen w-screen bg-black">
+            <LinkViewHeartbeat linkId={linkId} />
             <VideoPlayer streamName={streamName} host={publicHost} />
         </div>
     );

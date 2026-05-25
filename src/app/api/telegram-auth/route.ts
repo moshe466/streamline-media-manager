@@ -1,3 +1,4 @@
+import { getLinkAnalytics } from '@/services/link-analytics';
 import { getStreams } from '@/services/flussonic';
 import os from 'os';
 import { spawn, execSync } from 'child_process';
@@ -1051,6 +1052,35 @@ const isAdminCommand =
               chatId,
               `✅ השם המותאם נשמר עבור המשתמש ${targetTelegramUserId}: ${text}`
           );
+          return NextResponse.json({ success: true });
+      }
+
+      if (text.startsWith('/link_stats')) {
+          const linkId = text.replace('/link_stats', '').trim();
+
+          if (!linkId) {
+              await sendTelegramMessage(chatId, '⚠️ שימוש נכון: /link_stats <linkId>');
+              return NextResponse.json({ success: true });
+          }
+
+          const stats = await getLinkAnalytics(linkId);
+
+          if (!stats) {
+              await sendTelegramMessage(chatId, '📭 אין עדיין נתוני צפייה ללינק הזה.');
+              return NextResponse.json({ success: true });
+          }
+
+          const currentViewers = stats.currentViewers || 0;
+          const peakViewers = stats.peakViewers || 0;
+          const totalHeartbeats = stats.totalHeartbeats || 0;
+          const streamName = stats.streamName || '—';
+
+          await sendTelegramMessage(
+              chatId,
+              `📊 <b>סטטיסטיקת לינק</b>\n\n🔗 <b>לינק:</b> <code>${linkId}</code>\n📡 <b>שידור:</b> <code>${streamName}</code>\n👁️ <b>צופים עכשיו:</b> ${currentViewers}\n📈 <b>שיא צפיות:</b> ${peakViewers}\n🔁 <b>Heartbeats:</b> ${totalHeartbeats}`,
+              { parse_mode: 'HTML' }
+          );
+
           return NextResponse.json({ success: true });
       }
 
