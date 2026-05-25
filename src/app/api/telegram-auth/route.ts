@@ -6,11 +6,13 @@ import { NextResponse } from 'next/server';
 import { sendTelegramLogMessage, sendTelegramMessage, getSession, createOrUpdateSession, deleteSession, sendTelegramMessageWithPhoneKeyboard, answerTelegramCallbackQuery, getTelegramChatMember, createTelegramSingleUseInviteLink } from '@/services/telegram';
 import { TELEGRAM_LINKS_SUPER_ADMIN_ID } from '@/lib/telegram-config';
 import { createLinkAccessRequest, approveTelegramUserLinkAccess, rejectTelegramUserLinkAccess, revokeTelegramUserLinkAccess, isTelegramUserAllowedToCreateLinks, getTelegramLinkAccessRequest, listApprovedTelegramLinkUsers, getTelegramLinkPermission, setTelegramUserCustomDisplayName, listPendingTelegramLinkAccessRequests } from '@/services/telegram-link-permissions';
-import { LINKS_GROUP_CHAT_ID, PILOT_ALERTS_GROUP_ID } from '@/lib/telegram-config';
+import { LINKS_GROUP_CHAT_ID, PILOT_ALERTS_GROUP_ID, TELEGRAM_BROADCAST_GROUPS } from '@/lib/telegram-config';
 import { logEvent } from '@/services/logger';
 import { getDb } from '@/lib/firebase-admin';
 import type { Client } from '@/services/clients';
+import { updateClientTelegramNotificationsEnabled, updateClientTelegramConnection } from '@/services/clients';
 import { getSystemCredentials, getUserById, updateUser } from '@/services/users';
+import type { User } from '@/services/users';
 import { getAuthCodeDetails } from '@/services/telegram-auth';
 import { createSecureLink, listRecentSecureLinks, deleteSecureLink } from '@/services/secure-links';
 
@@ -35,6 +37,32 @@ async function getClientByChatId(chatId: number): Promise<Client | null> {
     return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Client;
 }
 
+
+
+async function findClientByTelegramChatIdSafe(chatId: number | string): Promise<Client | null> {
+  const db = getDb();
+  const snapshot = await db.collection('clients').get();
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as any;
+    const chats = Array.isArray(data.telegramChats) ? data.telegramChats : [];
+    const match = chats.find((chat: any) => String(chat?.id) === String(chatId));
+
+    if (match) {
+      return { id: doc.id, ...data } as Client;
+    }
+  }
+
+  return null;
+}
+
+
+async function findAdminByTelegramChatIdSafe(chatId: number | string): Promise<User | null> {
+  const db = getDb();
+  const snapshot = await db.collection('users').where('telegramChatId', '==', String(chatId)).limit(1).get();
+  if (snapshot.empty) return null;
+  return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
+}
 
 async function handleNewUser(chatId: number, from: any) {
   const fullName = [from?.first_name, from?.last_name].filter(Boolean).join(' ') || '(ללא שם)';
@@ -238,6 +266,22 @@ export async function POST(request: Request) {
       const chatId = message.chat.id;
       const session = await getSession(chatId);
 
+      // Admin compatibility: plain /start and /stop for already linked admins
+      const linkedAdmin = await findAdminByTelegramChatIdSafe(chatId);
+
+      if (linkedAdmin && (message.text || '').trim() === '/start') {
+        await updateUser(linkedAdmin.id, { adminTelegramEnabled: true });
+        await sendTelegramMessage(chatId, `🔔 ההתראות הניהוליות הופעלו מחדש עבור ${linkedAdmin.nickname}.`);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (linkedAdmin && (message.text || '').trim() === '/stop') {
+        await updateUser(linkedAdmin.id, { adminTelegramEnabled: false });
+        await sendTelegramMessage(chatId, `⏸️ ההתראות הניהוליות הופסקו עבור ${linkedAdmin.nickname}.`);
+        return NextResponse.json({ ok: true });
+      }
+
+
       if (session?.state === 'awaiting_phone') {
         const phone = (message.contact.phone_number || '').replace(/\D/g, '');
         await handlePhone(chatId, phone, session);
@@ -262,6 +306,19 @@ export async function POST(request: Request) {
       } catch (e) {
         console.error('Failed to answer callback query:', e);
       }
+      if (data === 'link_admin:broadcast') {
+        await createOrUpdateSession(chatId!, {
+          state: 'awaiting_broadcast_message'
+        });
+
+        await sendTelegramMessage(
+          chatId!,
+          '📢 שלח עכשיו את ההודעה שברצונך להפיץ לכל הקבוצות.'
+        );
+
+        return NextResponse.json({ success: true });
+      }
+
       if (data === 'link_admin:send_request_link') {
         if (!isSuperAdmin) {
           return NextResponse.json({ success: true });
@@ -342,7 +399,9 @@ export async function POST(request: Request) {
           }
         };
 
-        const nextStatus = checkProc('next dev');
+        const nextDevStatus = checkProc('next dev');
+        const nextStartStatus = checkProc('next start');
+        const nextStatus = (nextDevStatus === '✅ רץ' || nextStartStatus === '✅ רץ') ? '✅ רץ' : '❌ לא רץ';
         const streamPollerStatus = checkProc('stream-poller');
         const linksPollerStatus = checkProc('links-poller');
 
@@ -453,29 +512,38 @@ export async function POST(request: Request) {
           const source = (link as any).createdVia === 'bot' ? 'בוט' : 'אפליקציה';
           const createdAt = link.createdAt instanceof Date ? link.createdAt.toISOString() : String(link.createdAt || '');
 
+          const expiresAt = link.expiresAt instanceof Date
+            ? link.expiresAt
+            : new Date((link as any).expiresAt || 0);
+
+          const isActive = expiresAt > new Date();
+          const statusText = isActive ? '✅ פעיל' : '⛔ לא פעיל';
+
           const text =
             `📋 <b>לינק אחרון</b>\n\n` +
             `👤 <b>יוצר:</b> ${actorName}\n` +
             `📡 <b>שידור:</b> ${link.streamName}\n` +
             `🧩 <b>מקור:</b> ${source}\n` +
-            `🕒 <b>נוצר:</b> ${createdAt}\n\n` +
+            `📌 <b>סטטוס:</b> ${statusText}\n` +
+            `🕒 <b>נוצר:</b> ${createdAt}\n` +
+            `⌛ <b>פג תוקף:</b> ${expiresAt.toISOString()}\n\n` +
             `<b>לינק:</b>\n${watchUrl}`;
+
+          const inline_keyboard = isActive
+            ? [
+                [{ text: '🔗 פתח לינק', url: watchUrl }],
+                [{ text: '🗑️ מחק לינק', callback_data: `delete_secure_link:${link.id}` }]
+              ]
+            : [
+                [{ text: '🔗 פתח לינק', url: watchUrl }]
+              ];
 
           await sendTelegramMessage(
             chatId,
             text,
             {
               parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '🔗 פתח לינק', url: watchUrl }
-                  ],
-                  [
-                    { text: '🗑️ מחק לינק', callback_data: `delete_secure_link:${link.id}` }
-                  ]
-                ]
-              }
+              reply_markup: { inline_keyboard }
             }
           );
         }
@@ -608,15 +676,33 @@ export async function POST(request: Request) {
         }
 
         const linkId = data.split(':')[1];
+        const links = await listRecentSecureLinks(50);
+        const targetLink = links.find((l) => l.id === linkId);
+
+        if (!chatId) {
+          return NextResponse.json({ success: true });
+        }
+
+        if (!targetLink) {
+          await sendTelegramMessage(chatId, `⛔ הלינק ${linkId} כבר לא קיים במערכת.`);
+          return NextResponse.json({ success: true });
+        }
+
+        const expiresAt = targetLink.expiresAt instanceof Date
+          ? targetLink.expiresAt
+          : new Date((targetLink as any).expiresAt || 0);
+
+        if (!(expiresAt > new Date())) {
+          await sendTelegramMessage(chatId, `⛔ הלינק ${linkId} כבר לא פעיל ולכן לא ניתן למחוק אותו מכאן.`);
+          return NextResponse.json({ success: true });
+        }
 
         const result = await deleteSecureLink(linkId, from.first_name || from.username || String(from.id));
 
-        if (chatId) {
-          if (result.success) {
-            await sendTelegramMessage(chatId, `✅ הלינק ${linkId} נמחק בהצלחה.`);
-          } else {
-            await sendTelegramMessage(chatId, `❌ מחיקת הלינק ${linkId} נכשלה.`);
-          }
+        if (result.success) {
+          await sendTelegramMessage(chatId, `✅ הלינק ${linkId} נמחק בהצלחה.`);
+        } else {
+          await sendTelegramMessage(chatId, `❌ מחיקת הלינק ${linkId} נכשלה.`);
         }
 
         return NextResponse.json({ success: true });
@@ -763,6 +849,59 @@ export async function POST(request: Request) {
         const payload = text.replace('/start', '').trim();
         console.log('START PAYLOAD:', payload);
 
+
+        if (payload === 'client_resume') {
+          const client = await getClientByChatId(chatId);
+
+          if (!client) {
+            await sendTelegramMessage(chatId, '❌ לא נמצא לקוח מקושר לצ׳אט הזה.');
+            return NextResponse.json({ ok: true });
+          }
+
+          await getDb().collection('clients').doc(client.id).update({ telegramNotificationsEnabled: true });
+          await sendTelegramMessage(chatId, `🔔 ההתראות הופעלו מחדש עבור ${client.nickname}.`);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (payload === 'client_stop') {
+          const client = await getClientByChatId(chatId);
+
+          if (!client) {
+            await sendTelegramMessage(chatId, '❌ לא נמצא לקוח מקושר לצ׳אט הזה.');
+            return NextResponse.json({ ok: true });
+          }
+
+          await getDb().collection('clients').doc(client.id).update({ telegramNotificationsEnabled: false });
+          await sendTelegramMessage(chatId, `⏸️ ההתראות הופסקו עבור ${client.nickname}.`);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (payload === 'admin_resume') {
+          const admin = await findAdminByTelegramChatIdSafe(chatId);
+
+          if (!admin) {
+            await sendTelegramMessage(chatId, '❌ לא נמצא מנהל מקושר לצ׳אט הזה.');
+            return NextResponse.json({ ok: true });
+          }
+
+          await updateUser(admin.id, { adminTelegramEnabled: true });
+          await sendTelegramMessage(chatId, `🔔 ההתראות הניהוליות הופעלו מחדש עבור ${admin.nickname}.`);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (payload === 'admin_stop') {
+          const admin = await findAdminByTelegramChatIdSafe(chatId);
+
+          if (!admin) {
+            await sendTelegramMessage(chatId, '❌ לא נמצא מנהל מקושר לצ׳אט הזה.');
+            return NextResponse.json({ ok: true });
+          }
+
+          await updateUser(admin.id, { adminTelegramEnabled: false });
+          await sendTelegramMessage(chatId, `⏸️ ההתראות הניהוליות הופסקו עבור ${admin.nickname}.`);
+          return NextResponse.json({ ok: true });
+        }
+
         if (payload === 'request_link_access') {
           const result = await createLinkAccessRequest({
             telegramUserId: from.id,
@@ -873,6 +1012,32 @@ const isAdminCommand =
         text === '/request_link_access' ||
         text === '/start request_link_access';
 
+      if (session?.state === 'awaiting_broadcast_message' && text && !isAdminCommand) {
+          let successCount = 0;
+          let failedCount = 0;
+
+          const broadcastText = `📢 <b>הודעת מערכת MizrachiTV</b>\n\n${text}`;
+
+          for (const groupId of TELEGRAM_BROADCAST_GROUPS) {
+              try {
+                  await sendTelegramMessage(groupId, broadcastText, { parse_mode: 'HTML' });
+                  successCount++;
+              } catch (err) {
+                  console.error('Broadcast send failed:', groupId, err);
+                  failedCount++;
+              }
+          }
+
+          await createOrUpdateSession(chatId, { state: 'idle' });
+
+          await sendTelegramMessage(
+              chatId,
+              `✅ ההודעה נשלחה. הצליח: ${successCount}, נכשל: ${failedCount}`
+          );
+
+          return NextResponse.json({ success: true });
+      }
+
       if (session?.state === 'awaiting_link_user_rename' && text && !isAdminCommand) {
           const targetTelegramUserId = session.targetTelegramUserId;
           await setTelegramUserCustomDisplayName({
@@ -907,6 +1072,7 @@ const isAdminCommand =
                           [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
                           [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
                           [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
+                          [{ text: '📢 שלח הודעה לכל הקבוצות', callback_data: 'link_admin:broadcast' }],
                           [{ text: '📊 סטטוס מערכת', callback_data: 'link_admin:system_status' }],
                           [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }]
                       ]

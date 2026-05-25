@@ -23,3 +23,10 @@ export const PILOT_ALERTS_GROUP_ID = '-1003777907538';
 
 // The only Telegram user allowed to approve/revoke link creation permissions
 export const TELEGRAM_LINKS_SUPER_ADMIN_ID = '330691740';
+
+
+export const TELEGRAM_BROADCAST_GROUPS = [
+  LINKS_GROUP_CHAT_ID,
+  PILOT_ALERTS_GROUP_ID,
+  MONITORING_CHAT_ID,
+];
