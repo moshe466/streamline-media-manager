@@ -1070,14 +1070,21 @@ const isAdminCommand =
               return NextResponse.json({ success: true });
           }
 
-          const currentViewers = stats.currentViewers || 0;
-          const peakViewers = stats.peakViewers || 0;
-          const totalHeartbeats = stats.totalHeartbeats || 0;
-          const streamName = stats.streamName || '—';
+          const sessions = Object.values((stats as any).currentSessions || {}) as any[];
+          const maxWatchSeconds = Math.max(0, ...sessions.map((s: any) => s.watchSeconds || 0));
 
           await sendTelegramMessage(
               chatId,
-              `📊 <b>סטטיסטיקת לינק</b>\n\n🔗 <b>לינק:</b> <code>${linkId}</code>\n📡 <b>שידור:</b> <code>${streamName}</code>\n👁️ <b>צופים עכשיו:</b> ${currentViewers}\n📈 <b>שיא צפיות:</b> ${peakViewers}\n🔁 <b>Heartbeats:</b> ${totalHeartbeats}`,
+              `📊 <b>סטטיסטיקת לינק</b>\n\n` +
+              `�� <b>לינק:</b> <code>${linkId}</code>\n` +
+              `📡 <b>שידור:</b> <code>${(stats as any).streamName || '—'}</code>\n` +
+              `🟢 <b>מחובר עכשיו:</b> ${(stats as any).isLiveNow ? 'כן' : 'לא'}\n` +
+              `👁️ <b>צופים עכשיו:</b> ${(stats as any).currentViewers || 0}\n` +
+              `📈 <b>שיא צפיות:</b> ${(stats as any).peakViewers || 0}\n` +
+              `🌍 <b>מספר IP:</b> ${(stats as any).uniqueIpCount || 0}\n` +
+              `⏱️ <b>זמן צפייה מקסימלי:</b> ${maxWatchSeconds} שניות\n` +
+              `⚠️ <b>חשד לשיתוף:</b> ${(stats as any).suspectedSharing ? 'כן' : 'לא'}\n` +
+              `🔁 <b>פעימות:</b> ${(stats as any).totalHeartbeats || 0}`,
               { parse_mode: 'HTML' }
           );
 

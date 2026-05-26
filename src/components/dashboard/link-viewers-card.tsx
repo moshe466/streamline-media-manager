@@ -1,9 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Eye, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Eye, Link as LinkIcon, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+
+type ViewerSession = {
+  ip?: string;
+  userAgent?: string;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+  watchSeconds?: number;
+};
 
 type LinkAnalytics = {
   id: string;
@@ -13,13 +21,26 @@ type LinkAnalytics = {
   peakViewers?: number;
   totalHeartbeats?: number;
   updatedAt?: string;
+  isLiveNow?: boolean;
+  uniqueIpCount?: number;
+  suspectedSharing?: boolean;
+  currentSessions?: Record<string, ViewerSession>;
+  history?: { at: string; viewers: number }[];
 };
+
+function formatSeconds(seconds = 0) {
+  if (seconds < 60) return `${seconds} שנ׳`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes} דק׳ ${rest} שנ׳`;
+}
 
 export function LinkViewersCard() {
   const [links, setLinks] = useState<LinkAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
+    setLoading(true);
     try {
       const res = await fetch('/api/admin/link-analytics', { cache: 'no-store' });
       const data = await res.json();
@@ -37,14 +58,23 @@ export function LinkViewersCard() {
     return () => window.clearInterval(interval);
   }, []);
 
+  const totalLiveViewers = useMemo(
+    () => links.reduce((sum, link) => sum + (link.currentViewers || 0), 0),
+    [links]
+  );
+
   return (
     <Card className="text-right">
       <CardHeader className="flex flex-row-reverse items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Eye className="h-5 w-5" />
           צופים בלינקים בזמן אמת
+          <Badge variant="secondary">סה״כ עכשיו: {totalLiveViewers}</Badge>
         </CardTitle>
-        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+
+        <button onClick={load} className="rounded-md p-1 hover:bg-muted transition" title="רענן נתונים">
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </CardHeader>
 
       <CardContent>
@@ -54,33 +84,70 @@ export function LinkViewersCard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {links.slice(0, 10).map((link) => (
-              <div key={link.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="secondary" className="gap-1">
-                    <Eye className="h-3 w-3" />
-                    עכשיו: {link.currentViewers || 0}
-                  </Badge>
-                  <div className="font-medium truncate">
-                    {link.streamName || 'שידור לא ידוע'}
+            {links.slice(0, 10).map((link) => {
+              const sessions = Object.entries(link.currentSessions || {});
+              const maxWatch = Math.max(0, ...sessions.map(([, s]) => s.watchSeconds || 0));
+              const maxHistory = Math.max(1, ...(link.history || []).map(p => p.viewers || 0));
+
+              return (
+                <div key={link.id} className="rounded-lg border p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex gap-2">
+                      <Badge variant={link.isLiveNow ? 'default' : 'secondary'}>
+                        {link.isLiveNow ? '🟢 מחובר עכשיו' : '⚪ לא פעיל'}
+                      </Badge>
+                      {link.suspectedSharing && (
+                        <Badge variant="destructive" className="gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          חשד לשיתוף
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="font-medium truncate">
+                      {link.streamName || 'שידור לא ידוע'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>👁️ עכשיו: {link.currentViewers || 0}</div>
+                    <div>📈 שיא: {link.peakViewers || 0}</div>
+                    <div>🌍 IPs: {link.uniqueIpCount || 0}</div>
+                    <div>⏱️ צפייה מקס׳: {formatSeconds(maxWatch)}</div>
+                  </div>
+
+                  <div className="flex h-10 items-end gap-1 border rounded p-2">
+                    {(link.history || []).slice(-30).map((point, idx) => (
+                      <div
+                        key={`${point.at}-${idx}`}
+                        title={`${point.viewers} צופים`}
+                        className="w-2 bg-primary rounded-sm"
+                        style={{ height: `${Math.max(8, (point.viewers / maxHistory) * 32)}px` }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="space-y-1">
+                    {sessions.slice(0, 5).map(([key, session]) => (
+                      <div key={key} className="text-xs text-muted-foreground border rounded p-2">
+                        <div>🌐 IP: <code>{session.ip || '—'}</code></div>
+                        <div>⏱️ זמן צפייה: {formatSeconds(session.watchSeconds || 0)}</div>
+                        <div className="truncate">🧭 {session.userAgent || '—'}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground ltr text-left">
+                    <LinkIcon className="h-3 w-3" />
+                    <code>{link.linkId || link.id}</code>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    עודכן: {link.updatedAt ? new Date(link.updatedAt).toLocaleString('he-IL') : '—'}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <div>שיא צפיות: {link.peakViewers || 0}</div>
-                  <div>פעימות: {link.totalHeartbeats || 0}</div>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs text-muted-foreground ltr text-left">
-                  <LinkIcon className="h-3 w-3" />
-                  <code>{link.linkId || link.id}</code>
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  עודכן: {link.updatedAt ? new Date(link.updatedAt).toLocaleString('he-IL') : '—'}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
