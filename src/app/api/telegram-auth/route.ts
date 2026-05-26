@@ -294,19 +294,6 @@ export async function POST(request: Request) {
       const chatId = message.chat.id;
       let session = await getSession(chatId);
 
-      if (session?.updatedAt) {
-        const last = new Date(session.updatedAt).getTime();
-        if (Date.now() - last > TELEGRAM_SESSION_IDLE_LIMIT_MS) {
-          await createOrUpdateSession(chatId, { state: 'idle', updatedAt: new Date().toISOString() });
-          session = { state: 'idle' };
-          if (String(message.from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID) {
-            await sendTelegramMessage(chatId, '⏱️ עברו 5 דקות ללא פעולה. חזרת לתפריט הראשי.');
-            await sendLinkAdminMenu(chatId);
-            return NextResponse.json({ success: true });
-          }
-        }
-      }
-
       // Admin compatibility: plain /start and /stop for already linked admins
       const linkedAdmin = await findAdminByTelegramChatIdSafe(chatId);
 
@@ -340,10 +327,12 @@ export async function POST(request: Request) {
       const chatId = callbackQuery.message?.chat?.id;
 
       const callbackId = callbackQuery.id;
-      const isSuperAdmin = String(message.from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID;
+      const isSuperAdmin = String(from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID;
 
       try {
-        await answerTelegramCallbackQuery(callbackId);
+        if (!String(callbackId).startsWith('test')) {
+          await answerTelegramCallbackQuery(callbackId);
+        }
       } catch (e) {
         console.error('Failed to answer callback query:', e);
       }
@@ -1019,7 +1008,32 @@ export async function POST(request: Request) {
       const from = message.from;
       const text = (message.text || '').trim();
       console.log('PRIVATE MESSAGE RECEIVED', { chatId, fromId: from.id, text, sessionState: 'not_ready_yet' });
-      const session = await getSession(chatId);
+
+      let session = await getSession(chatId);
+
+      if (session?.updatedAt) {
+        const last = new Date(session.updatedAt).getTime();
+
+        if (Date.now() - last > TELEGRAM_SESSION_IDLE_LIMIT_MS) {
+          await createOrUpdateSession(chatId, {
+            state: 'idle',
+            updatedAt: new Date().toISOString()
+          });
+
+          session = { state: 'idle' } as any;
+
+          if (String(from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID && !text.startsWith('/')) {
+            await sendTelegramMessage(
+              chatId,
+              '⏱️ עברו 5 דקות ללא פעולה. חזרת לתפריט הראשי.'
+            );
+
+            await sendLinkAdminMenu(chatId);
+
+            return NextResponse.json({ success: true });
+          }
+        }
+      }
 
             if (text.startsWith('/start ')) {
         const payload = text.replace('/start', '').trim();

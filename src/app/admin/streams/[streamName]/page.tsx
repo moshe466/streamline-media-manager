@@ -25,6 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { getActiveLinksForStream, deleteSecureLink, type SecureLink } from '@/services/secure-links';
+import { StreamLinkAnalyticsCard } from '@/components/stream-link-analytics-card';
 
 type EditableStreamPush = Omit<StreamPush, 'url'> & { 
     id: string; 
@@ -216,6 +217,19 @@ export default function StreamDetailsPage() {
         await updateLiveConfig({ protocols: obj }, `פרוטוקולים ${mode === 'enable' ? 'הופעלו' : 'כובו'}.`);
     };
 
+    const handleSingleProtocolUpdate = async (protocolKey: string, enabled: boolean) => {
+        const currentProtocols = (liveData.details?.protocols || {}) as Record<string, boolean>;
+        const obj: Record<string, boolean> = {};
+        ALL_PROTOCOLS.forEach(p => {
+            obj[p] = currentProtocols[p] === true;
+        });
+        obj[protocolKey] = enabled;
+        await updateLiveConfig(
+            { protocols: obj },
+            `הפרוטוקול ${protocolKey.toUpperCase()} ${enabled ? 'הופעל' : 'כובה'}.`
+        );
+    };
+
     const handleCopyProtocolUrl = (protocolKey: string) => {
         const ingestHost = flussonicIngestHost;
         let url = '';
@@ -358,7 +372,7 @@ export default function StreamDetailsPage() {
                     <CardFooter className="flex-col items-start gap-3 border-t bg-muted/20 p-4">
                         <div className="w-full">
                             <Label className="text-xs text-muted-foreground text-right w-full block">כתובת שרת (RTMP)</Label>
-                            <div className="flex items-center justify-between gap-2 overflow-hidden">
+                            <div className="flex flex-row-reverse items-center justify-between gap-2 overflow-hidden">
                                 <span className="font-mono text-sm truncate" dir="ltr">{showRtmp ? rtmpUrl : '••••••••••••••••'}</span>
                                 <div className="flex items-center gap-1 shrink-0">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRtmp(!showRtmp)}>{showRtmp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
@@ -368,7 +382,7 @@ export default function StreamDetailsPage() {
                         </div>
                         <div className="w-full">
                             <Label className="text-xs text-muted-foreground text-right w-full block">מפתח הזרמה</Label>
-                            <div className="flex items-center justify-between gap-2 overflow-hidden">
+                            <div className="flex flex-row-reverse items-center justify-between gap-2 overflow-hidden">
                                 <span className="font-mono text-sm truncate" dir="ltr">{showStreamKey ? streamKey : '••••••••••••••••'}</span>
                                 <div className="flex items-center gap-1 shrink-0">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowStreamKey(!showStreamKey)}>{showStreamKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
@@ -387,13 +401,50 @@ export default function StreamDetailsPage() {
                 </Card>
             </div>
 
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card data-tour="stream-dvr-card" className="h-full">
+                    <CardHeader className="text-right" dir="rtl">
+                        <CardTitle className="w-full">
+                            <div className="flex w-full items-center justify-start gap-2 text-right">
+                                <Video className="h-5 w-5" />
+                                <span>הקלטות DVR</span>
+                            </div>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <Switch checked={isDvrSwitchOn} onCheckedChange={handleDvrSwitchToggle} />
+                            <Label>הקלטה פעילה</Label>
+                        </div>
+                        {isDvrSwitchOn && (
+                            <Select dir="rtl" value={typeof liveData.details.dvr?.reference === 'string' ? liveData.details.dvr.reference : ''} onValueChange={handleDvrProfileSelect}>
+                                <SelectTrigger><SelectValue placeholder="בחר פרופיל..." /></SelectTrigger>
+                                <SelectContent>{dvrConfigs.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        )}
+                    </CardContent>
+                    {isDvrSwitchOn && (
+                        <CardFooter>
+                            <Button asChild variant="secondary" size="sm">
+                                <Link href={`/admin/streams/${currentStreamName}/dvr`}>
+                                    פתח נגן DVR
+                                    <Clapperboard className="mr-2 h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </CardFooter>
+                    )}
+                </Card>
+
             {/* LIVE PUSH STATUS SECTION */}
             <Card className="border-blue-500/20 bg-blue-500/5">
-                <CardHeader>
-                    <div className="flex items-center justify-end gap-2">
-                        <CardTitle>סטטוס הזרמה ליעדים (Live Push Status)</CardTitle>
-                        <Activity className="h-5 w-5 text-blue-400" />
-                    </div>
+                <CardHeader className="text-right" dir="rtl">
+                    <CardTitle className="w-full">
+                        <div className="flex w-full items-center justify-start gap-2 text-right">
+                            <Activity className="h-5 w-5 text-blue-400" />
+                            <span>סטטוס הזרמה ליעדים (Live Push Status)</span>
+                        </div>
+                    </CardTitle>
                     <CardDescription className="text-right">מידע בזמן אמת על הזרמות פעילות מהשרת.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -430,35 +481,15 @@ export default function StreamDetailsPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card data-tour="stream-dvr-card" className="h-full">
-                    <CardHeader><CardTitle className="flex items-center justify-end gap-2"><Video className="h-5 w-5"/>הקלטות DVR</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <Switch checked={isDvrSwitchOn} onCheckedChange={handleDvrSwitchToggle} />
-                            <Label>הקלטה פעילה</Label>
-                        </div>
-                        {isDvrSwitchOn && (
-                            <Select dir="rtl" value={typeof liveData.details.dvr?.reference === 'string' ? liveData.details.dvr.reference : ''} onValueChange={handleDvrProfileSelect}>
-                                <SelectTrigger><SelectValue placeholder="בחר פרופיל..." /></SelectTrigger>
-                                <SelectContent>{dvrConfigs.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        )}
-                    </CardContent>
-                    {isDvrSwitchOn && (
-                        <CardFooter>
-                            <Button asChild variant="secondary" size="sm">
-                                <Link href={`/admin/streams/${currentStreamName}/dvr`}>
-                                    פתח נגן DVR
-                                    <Clapperboard className="mr-2 h-4 w-4" />
-                                </Link>
-                            </Button>
-                        </CardFooter>
-                    )}
-                </Card>
-
                 <Card className="h-full">
-                    <CardHeader><CardTitle className="flex items-center justify-end gap-2"><Link2 className="h-5 w-5"/>קישורים זמניים</CardTitle></CardHeader>
+                    <CardHeader className="text-right" dir="rtl">
+                    <CardTitle className="w-full">
+                        <div className="flex w-full items-center justify-start gap-2 text-right">
+                            <Link2 className="h-5 w-5" />
+                            <span>קישורים זמניים</span>
+                        </div>
+                    </CardTitle>
+                </CardHeader>
                     <CardContent className="space-y-4">
                         <Button onClick={handleGenerateSecureLink} disabled={isGeneratingLink} className="w-full">
                             {isGeneratingLink ? <Loader2 className="h-4 w-4 animate-spin"/> : <PlusCircle className="ml-2 h-4 w-4" />}
@@ -488,6 +519,8 @@ export default function StreamDetailsPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <StreamLinkAnalyticsCard streamName={currentStreamName} />
             </div>
 
             {/* PUSH MANAGEMENT SECTION */}
@@ -547,24 +580,26 @@ export default function StreamDetailsPage() {
             <Card data-tour="stream-protocols-card">
                 <CardHeader>
                     <div className="flex flex-col gap-2 text-right">
-                        <CardTitle className="flex items-center justify-end gap-2">
-                            <Settings2 className="h-5 w-5"/>
-                            שליטה בפרוטוקולים
+                        <CardTitle className="w-full">
+                            <div className="flex w-full items-center justify-start gap-2 text-right" dir="rtl">
+                                <Settings2 className="h-5 w-5" />
+                                <span>שליטה בפרוטוקולים</span>
+                            </div>
                         </CardTitle>
                         <CardDescription>הפעל או כבה את כל פרוטוקולי הפלט עבור השידור. שינויים יתבצעו מיד.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-wrap justify-end gap-3 mb-4">
-                        <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleProtocolsUpdate('enable')} disabled={isSaving}>
-                            {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                            <Power className="ml-2 h-4 w-4" />
-                            הפעל הכל
+                    <div className="flex flex-wrap justify-start gap-3 mb-4" dir="rtl">
+                        <Button variant="default" className="bg-green-600 hover:bg-green-700 inline-flex flex-row-reverse gap-2" onClick={() => handleProtocolsUpdate('enable')} disabled={isSaving}>
+                            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                            <Power className="h-4 w-4" />
+                            <span>הפעל הכל</span>
                         </Button>
-                        <Button variant="destructive" onClick={() => handleProtocolsUpdate('disable')} disabled={isSaving}>
-                            {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                            <PowerOff className="ml-2 h-4 w-4" />
-                            כבה הכל
+                        <Button variant="destructive" className="inline-flex flex-row-reverse gap-2" onClick={() => handleProtocolsUpdate('disable')} disabled={isSaving}>
+                            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                            <PowerOff className="h-4 w-4" />
+                            <span>כבה הכל</span>
                         </Button>
                     </div>
                     <Separator className="my-4" />
@@ -574,16 +609,30 @@ export default function StreamDetailsPage() {
                             const isProtocolActive = protocols?.[protocolKey] === true;
                             return (
                                 <Card key={protocolKey} className="bg-muted/30">
-                                    <CardHeader className="p-3 flex-row justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyProtocolUrl(protocolKey)}>
-                                                {copiedProtocol === protocolKey ? <ClipboardCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                            </Button>
-                                            <Badge variant={isProtocolActive ? 'default' : 'secondary'} className={isProtocolActive ? 'bg-green-600 text-white' : ''}>
-                                                {isProtocolActive ? 'פעיל' : 'כבוי'}
-                                            </Badge>
+                                    <CardHeader className="p-3" dir="rtl">
+                                        <div className="flex w-full items-center justify-between gap-2">
+                                            <CardTitle className="text-base text-right">{protocolKey.toUpperCase()}</CardTitle>
+
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant={isProtocolActive ? 'default' : 'secondary'} className={isProtocolActive ? 'bg-green-600 text-white' : ''}>
+                                                    {isProtocolActive ? 'פעיל' : 'כבוי'}
+                                                </Badge>
+
+                                                <Button
+                                                    variant={isProtocolActive ? 'destructive' : 'default'}
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs"
+                                                    onClick={() => handleSingleProtocolUpdate(protocolKey, !isProtocolActive)}
+                                                    disabled={isSaving}
+                                                >
+                                                    {isProtocolActive ? 'כבה' : 'הפעל'}
+                                                </Button>
+
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyProtocolUrl(protocolKey)}>
+                                                    {copiedProtocol === protocolKey ? <ClipboardCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <CardTitle className="text-base">{protocolKey.toUpperCase()}</CardTitle>
                                     </CardHeader>
                                 </Card>
                             );
@@ -596,6 +645,7 @@ export default function StreamDetailsPage() {
                 <CardHeader><CardTitle>מידע טכני מפורט</CardTitle></CardHeader>
                 <CardContent className="p-0">
                     <StreamInfoCard stream={liveData.details} />
+            
                 </CardContent>
             </Card>
 
