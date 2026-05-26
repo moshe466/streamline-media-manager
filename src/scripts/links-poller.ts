@@ -1,3 +1,5 @@
+import 'dotenv/config';
+import http from 'http';
 import { getDb } from '@/lib/firebase-admin';
 import { notifyAdminOnSecureLinkCreated } from '@/services/notifications';
 
@@ -12,10 +14,32 @@ type SecureLinkDoc = {
   expiresAt?: any;
 };
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = Number(process.env.LINKS_POLLER_INTERVAL_MS || 5000);
+const PORT = Number(process.env.PORT || 8080);
+
+let lastRunAt: string | null = null;
+let lastError: string | null = null;
+let processedCount = 0;
+
+http
+  .createServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ok: true,
+      service: 'links-poller',
+      lastRunAt,
+      lastError,
+      processedCount,
+      uptime: process.uptime(),
+    }));
+  })
+  .listen(PORT, () => {
+    console.log(`✅ links-poller health server listening on ${PORT}`);
+  });
 
 async function scanForUnannouncedLinks() {
   const db = getDb();
+  lastRunAt = new Date().toISOString();
 
   const snapshot = await db
     .collection('secure_links')
@@ -28,10 +52,8 @@ async function scanForUnannouncedLinks() {
   for (const doc of snapshot.docs) {
     const data = doc.data() as SecureLinkDoc;
 
-    // כבר הוכרז
     if (data.announcedToTelegramAt) continue;
 
-    // אם פג תוקף, לא צריך להכריז
     try {
       const expiresAt =
         typeof data.expiresAt?.toDate === 'function'
@@ -41,13 +63,10 @@ async function scanForUnannouncedLinks() {
           : null;
 
       if (expiresAt && expiresAt < new Date()) {
-        await doc.ref.set(
-          {
-            announcedToTelegramAt: new Date(),
-            announcedToTelegramSource: 'expired_skip',
-          },
-          { merge: true }
-        );
+        await doc.ref.set({
+          announcedToTelegramAt: new Date(),
+          announcedToTelegramSource: 'expired_skip',
+        }, { merge: true });
         continue;
       }
     } catch (e) {
@@ -62,13 +81,12 @@ async function scanForUnannouncedLinks() {
     try {
       await notifyAdminOnSecureLinkCreated(streamName, actorName, doc.id, appHost, source);
 
-      await doc.ref.set(
-        {
-          announcedToTelegramAt: new Date(),
-          announcedToTelegramSource: `poller_${source}`,
-        },
-        { merge: true }
-      );
+      await doc.ref.set({
+        announcedToTelegramAt: new Date(),
+        announcedToTelegramSource: `poller_${source}`,
+      }, { merge: true });
+
+      processedCount++;
 
       console.log('LINK ANNOUNCED', {
         id: doc.id,
@@ -78,32 +96,37 @@ async function scanForUnannouncedLinks() {
         appHost,
       });
     } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
       console.error('LINKS POLLER announce failed', {
         id: doc.id,
         streamName,
         actorName,
         source,
         appHost,
-        error: err instanceof Error ? err.message : String(err),
+        error: lastError,
       });
     }
   }
 }
 
-async function main() {
-  console.log('🚀 links-poller started (5s)');
-  await scanForUnannouncedLinks();
+async function runOnce() {
+  try {
+    await scanForUnannouncedLinks();
+    lastError = null;
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
+    console.error('links-poller cycle failed:', err);
+  }
+}
 
-  setInterval(async () => {
-    try {
-      await scanForUnannouncedLinks();
-    } catch (err) {
-      console.error('links-poller cycle failed:', err);
-    }
-  }, POLL_INTERVAL_MS);
+async function main() {
+  console.log(`🚀 links-poller started every ${POLL_INTERVAL_MS}ms`);
+  await runOnce();
+  setInterval(runOnce, POLL_INTERVAL_MS);
 }
 
 main().catch((err) => {
+  lastError = err instanceof Error ? err.message : String(err);
   console.error('links-poller fatal error:', err);
   process.exit(1);
 });
