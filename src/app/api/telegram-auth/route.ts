@@ -1,4 +1,4 @@
-import { getLinkAnalytics } from '@/services/link-analytics';
+import { getLinkAnalytics, listLinkAnalytics } from '@/services/link-analytics';
 import { getStreams } from '@/services/flussonic';
 import os from 'os';
 import { spawn, execSync } from 'child_process';
@@ -20,6 +20,33 @@ import { createSecureLink, listRecentSecureLinks, deleteSecureLink } from '@/ser
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+const TELEGRAM_SESSION_IDLE_LIMIT_MS = 5 * 60 * 1000;
+
+
+async function sendLinkAdminMenu(chatId: number | string) {
+  await sendTelegramMessage(
+    chatId,
+    '🛠️ תפריט ניהול הרשאות ולינקים',
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '➕ שלח לינק לבקשת הרשאה', callback_data: 'link_admin:send_request_link' }],
+          [{ text: '📊 סטטיסטיקות לינקים', callback_data: 'link_admin:link_stats_menu' }],
+          [{ text: '👁️ לינקים פעילים עכשיו', callback_data: 'link_admin:active_links' }],
+          [{ text: '⚠️ לינקים חשודים', callback_data: 'link_admin:suspicious_links' }],
+          [{ text: '🚫 לינקים חסומים', callback_data: 'link_admin:blocked_links' }],
+          [{ text: '📢 שלח הודעה לכל הקבוצות', callback_data: 'link_admin:broadcast' }],
+          [{ text: '⏳ בקשות ממתינות', callback_data: 'link_admin:pending_requests' }],
+          [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
+          [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
+          [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
+          [{ text: '📊 סטטוס מערכת', callback_data: 'link_admin:system_status' }]
+        ]
+      }
+    }
+  );
+}
 
 // === helpers (שים למעלה בקובץ, לפני handlePhone) ===
 function normalizeEmail(e: string) {
@@ -265,7 +292,20 @@ export async function POST(request: Request) {
     const message = body.message;
     if (message?.contact && message?.chat?.type === 'private') {
       const chatId = message.chat.id;
-      const session = await getSession(chatId);
+      let session = await getSession(chatId);
+
+      if (session?.updatedAt) {
+        const last = new Date(session.updatedAt).getTime();
+        if (Date.now() - last > TELEGRAM_SESSION_IDLE_LIMIT_MS) {
+          await createOrUpdateSession(chatId, { state: 'idle', updatedAt: new Date().toISOString() });
+          session = { state: 'idle' };
+          if (String(message.from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID) {
+            await sendTelegramMessage(chatId, '⏱️ עברו 5 דקות ללא פעולה. חזרת לתפריט הראשי.');
+            await sendLinkAdminMenu(chatId);
+            return NextResponse.json({ success: true });
+          }
+        }
+      }
 
       // Admin compatibility: plain /start and /stop for already linked admins
       const linkedAdmin = await findAdminByTelegramChatIdSafe(chatId);
@@ -300,13 +340,148 @@ export async function POST(request: Request) {
       const chatId = callbackQuery.message?.chat?.id;
 
       const callbackId = callbackQuery.id;
-      const isSuperAdmin = String(from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID;
+      const isSuperAdmin = String(message.from.id) === TELEGRAM_LINKS_SUPER_ADMIN_ID;
 
       try {
         await answerTelegramCallbackQuery(callbackId);
       } catch (e) {
         console.error('Failed to answer callback query:', e);
       }
+      if (data === 'link_admin:main_menu') {
+        if (chatId) await sendLinkAdminMenu(chatId);
+        return NextResponse.json({ success: true });
+      }
+
+      if (data === 'link_admin:link_stats_menu' || data === 'link_admin:active_links' || data === 'link_admin:suspicious_links' || data === 'link_admin:blocked_links') {
+        const links = await listLinkAnalytics(20);
+
+        let filtered = links;
+        let title = '📊 סטטיסטיקות לינקים';
+
+        if (data === 'link_admin:active_links') {
+          filtered = links.filter((l: any) => (l.currentViewers || 0) > 0);
+          title = '👁️ לינקים פעילים עכשיו';
+        }
+
+        if (data === 'link_admin:suspicious_links') {
+          filtered = links.filter((l: any) => l.suspectedSharing);
+          title = '⚠️ לינקים חשודים';
+        }
+
+        if (data === 'link_admin:blocked_links') {
+          filtered = links.filter((l: any) => l.isBlocked);
+          title = '🚫 לינקים חסומים';
+        }
+
+        if (!filtered.length) {
+          await sendTelegramMessage(chatId!, title + '\n\n📭 אין נתונים להצגה.', {
+            reply_markup: { inline_keyboard: [[{ text: '↩️ חזרה לתפריט הראשי', callback_data: 'link_admin:main_menu' }]] }
+          });
+          return NextResponse.json({ success: true });
+        }
+
+        for (const link of filtered.slice(0, 10) as any[]) {
+          const linkId = link.linkId || link.id;
+          const text =
+            `${title}\n\n` +
+            `🔗 <b>Link ID:</b> <code>${linkId}</code>\n` +
+            `📡 <b>שידור:</b> <code>${link.streamName || '—'}</code>\n` +
+            `👁️ <b>צופים עכשיו:</b> ${link.currentViewers || 0}\n` +
+            `📈 <b>שיא צפיות:</b> ${link.peakViewers || 0}\n` +
+            `�� <b>IPs:</b> ${link.uniqueIpCount || 0}\n` +
+            `⚠️ <b>חשד לשיתוף:</b> ${link.suspectedSharing ? 'כן' : 'לא'}\n` +
+            `🚫 <b>חסום:</b> ${link.isBlocked ? 'כן' : 'לא'}\n` +
+            `🕒 <b>עודכן:</b> ${link.updatedAt || '—'}`;
+
+          await sendTelegramMessage(chatId!, text, {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📊 פרטים', callback_data: `link_stats:${linkId}` }
+                ],
+                [
+                  link.isBlocked
+                    ? { text: '✅ שחרר חסימה', callback_data: `unblock_link:${linkId}` }
+                    : { text: '🚫 חסום לינק', callback_data: `block_link:${linkId}` }
+                ],
+                [
+                  { text: '↩️ חזרה לתפריט הראשי', callback_data: 'link_admin:main_menu' }
+                ]
+              ]
+            }
+          });
+        }
+
+        return NextResponse.json({ success: true });
+      }
+
+      if (data.startsWith('link_stats:')) {
+        const linkId = data.split(':')[1];
+        const stats = await getLinkAnalytics(linkId);
+
+        if (!stats) {
+          await sendTelegramMessage(chatId!, '📭 אין נתוני צפייה ללינק הזה.');
+          return NextResponse.json({ success: true });
+        }
+
+        const sessions = Object.values((stats as any).currentSessions || {}) as any[];
+        const maxWatchSeconds = Math.max(0, ...sessions.map((session: any) => session.watchSeconds || 0));
+
+        await sendTelegramMessage(
+          chatId!,
+          `📊 <b>סטטיסטיקת לינק</b>\n\n` +
+          `🔗 <b>לינק:</b> <code>${linkId}</code>\n` +
+          `📡 <b>שידור:</b> <code>${(stats as any).streamName || '—'}</code>\n` +
+          `🟢 <b>מחובר עכשיו:</b> ${(stats as any).isLiveNow ? 'כן' : 'לא'}\n` +
+          `👁️ <b>צופים עכשיו:</b> ${(stats as any).currentViewers || 0}\n` +
+          `�� <b>שיא צפיות:</b> ${(stats as any).peakViewers || 0}\n` +
+          `🌍 <b>מספר IP:</b> ${(stats as any).uniqueIpCount || 0}\n` +
+          `⏱️ <b>זמן צפייה מקסימלי:</b> ${maxWatchSeconds} שניות\n` +
+          `⚠️ <b>חשד לשיתוף:</b> ${(stats as any).suspectedSharing ? 'כן' : 'לא'}\n` +
+          `🚫 <b>חסום:</b> ${(stats as any).isBlocked ? 'כן' : 'לא'}\n` +
+          `🔁 <b>פעימות:</b> ${(stats as any).totalHeartbeats || 0}`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  (stats as any).isBlocked
+                    ? { text: '✅ שחרר חסימה', callback_data: `unblock_link:${linkId}` }
+                    : { text: '🚫 חסום לינק', callback_data: `block_link:${linkId}` }
+                ],
+                [{ text: '↩️ חזרה לתפריט הראשי', callback_data: 'link_admin:main_menu' }]
+              ]
+            }
+          }
+        );
+
+        return NextResponse.json({ success: true });
+      }
+
+      if (data.startsWith('block_link:') || data.startsWith('unblock_link:')) {
+        const linkId = data.split(':')[1];
+        const isBlocked = data.startsWith('block_link:');
+
+        await getDb().collection('secure_link_analytics').doc(linkId).set({
+          isBlocked,
+          blockedAt: isBlocked ? new Date().toISOString() : null,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        await sendTelegramMessage(
+          chatId!,
+          isBlocked ? `🚫 הלינק נחסם: ${linkId}` : `✅ החסימה שוחררה: ${linkId}`,
+          {
+            reply_markup: {
+              inline_keyboard: [[{ text: '↩️ חזרה לתפריט הראשי', callback_data: 'link_admin:main_menu' }]]
+            }
+          }
+        );
+
+        return NextResponse.json({ success: true });
+      }
+
       if (data === 'link_admin:broadcast') {
         await createOrUpdateSession(chatId!, {
           state: 'awaiting_broadcast_message'
@@ -1097,26 +1272,7 @@ const isAdminCommand =
               return NextResponse.json({ success: true });
           }
 
-          await sendTelegramMessage(
-              chatId,
-              '🛠️ תפריט ניהול הרשאות לינקים',
-              {
-                  reply_markup: {
-                      inline_keyboard: [
-                          [{ text: '➕ שלח לינק לבקשת הרשאה', callback_data: 'link_admin:send_request_link' }],
-                          [{ text: '⏳ בקשות ממתינות', callback_data: 'link_admin:pending_requests' }],
-                          [{ text: '📋 לינקים אחרונים', callback_data: 'link_admin:recent_links' }],
-                          [{ text: '📋 רשימת משתמשים מורשים', callback_data: 'link_admin:list_users' }],
-                          [{ text: '✏️ שנה שם למשתמש', callback_data: 'link_admin:rename_menu' }],
-                          [{ text: '❌ הסר הרשאה ממשתמש', callback_data: 'link_admin:revoke_menu' }],
-                          [{ text: '📢 שלח הודעה לכל הקבוצות', callback_data: 'link_admin:broadcast' }],
-                          [{ text: '📊 סטטוס מערכת', callback_data: 'link_admin:system_status' }],
-                          [{ text: '♻️ דריסה והפעלה מחדש', callback_data: 'link_admin:restart_system' }]
-                      ]
-                  }
-              }
-          );
-
+          await sendLinkAdminMenu(chatId);
           return NextResponse.json({ success: true });
       }
 
