@@ -39,6 +39,19 @@ export function LinkViewersCard() {
   const [links, setLinks] = useState<LinkAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
 
+  async function toggleBlock(linkId: string, blocked: boolean) {
+    try {
+      await fetch('/api/admin/link-analytics/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linkId, blocked }),
+      });
+      await load();
+    } catch (error) {
+      console.error('Failed toggling link block', error);
+    }
+  }
+
   async function load() {
     setLoading(true);
     try {
@@ -92,7 +105,7 @@ export function LinkViewersCard() {
               return (
                 <div key={link.id} className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Badge variant={link.isLiveNow ? 'default' : 'secondary'}>
                         {link.isLiveNow ? '🟢 מחובר עכשיו' : '⚪ לא פעיל'}
                       </Badge>
@@ -102,6 +115,15 @@ export function LinkViewersCard() {
                           חשד לשיתוף
                         </Badge>
                       )}
+                      {(link as any).isBlocked && (
+                        <Badge variant="destructive">חסום</Badge>
+                      )}
+                      <button
+                        onClick={() => toggleBlock(link.linkId || link.id, !(link as any).isBlocked)}
+                        className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                      >
+                        {(link as any).isBlocked ? 'שחרר חסימה' : 'חסום לינק'}
+                      </button>
                     </div>
 
                     <div className="font-medium truncate">

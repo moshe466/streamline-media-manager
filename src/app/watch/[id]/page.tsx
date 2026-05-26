@@ -98,7 +98,7 @@ function WatchPageContent() {
     }
     
     return (
-        <div className="h-screen w-screen bg-black">
+        <div className="relative h-screen w-screen bg-black">
             <LinkViewHeartbeat linkId={linkId} />
             <VideoPlayer streamName={streamName} host={publicHost} />
         </div>

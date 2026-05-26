@@ -14,6 +14,7 @@ export async function recordLinkHeartbeat(params: {
   streamName?: string;
   ip?: string;
   userAgent?: string;
+  sessionId?: string;
 }) {
   const now = new Date();
   const nowMs = now.getTime();
@@ -23,7 +24,7 @@ export async function recordLinkHeartbeat(params: {
   const data = doc.exists ? doc.data() || {} : {};
 
   const currentSessions = data.currentSessions || {};
-  const sessionKey = `${params.ip || 'unknown'}:${params.userAgent || 'unknown'}`;
+  const sessionKey = params.sessionId || `${params.ip || 'unknown'}:${params.userAgent || 'unknown'}`;
 
   const existingSession = currentSessions[sessionKey] || {};
   const firstSeenAt = existingSession.firstSeenAt || now.toISOString();

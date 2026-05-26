@@ -9,6 +9,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const linkId = String(body.linkId || '').trim();
+    const sessionId = String(body.sessionId || '').trim();
 
     if (!linkId) {
       return NextResponse.json({ success: false, error: 'Missing linkId' }, { status: 400 });
@@ -31,7 +32,24 @@ export async function POST(request: Request) {
       streamName: linkData.streamName,
       ip,
       userAgent,
+      sessionId,
     });
+
+    if ((stats as any).suspectedSharing) {
+      return NextResponse.json({
+        success: true,
+        warning: 'suspected_sharing',
+        ...stats
+      });
+    }
+
+    if ((stats as any).suspectedSharing) {
+      return NextResponse.json({
+        success: true,
+        warning: 'suspected_sharing',
+        ...stats
+      });
+    }
 
     return NextResponse.json({ success: true, ...stats });
   } catch (error) {
