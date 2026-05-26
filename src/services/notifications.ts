@@ -30,7 +30,7 @@ export async function notifyStreamOnline(streamName: string, clientNickname?: st
             reply_markup: {
                 inline_keyboard: [[{
                     text: '🎬 צור לינק',
-                    url: `https://t.me/Mizrachi_TV_bot?start=create_${streamName}`
+                    url: `https://t.me/Mizrachi_TV_bot?start=${encodeURIComponent(`create_${streamName}`)}`
                 }]]
             }
         }
