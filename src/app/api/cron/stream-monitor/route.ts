@@ -8,9 +8,9 @@ import { logEvent } from '@/services/logger';
 const CRON_SECRET = process.env.CRON_SECRET;
 const CACHE_DOC_REF = getDb().collection('system_status').doc('streams_pilot_cache');
 
-const ONLINE_STABLE_MS = 30 * 1000;
-const OFFLINE_STABLE_MS = 90 * 1000;
-const NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000;
+const ONLINE_STABLE_MS = 15 * 1000;
+const OFFLINE_STABLE_MS = 30 * 1000;
+const NOTIFICATION_COOLDOWN_MS = 2 * 60 * 1000;
 
 export const dynamic = 'force-dynamic';
 
