@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { StreamCardImage } from './stream-card-image';
 import { AdminStreamsHeroV2 } from '@/components/dashboard-v2/admin-streams-hero-v2';
 import { StreamCardV2 } from '@/components/dashboard-v2/stream-card-v2';
+import { AdminOpsPanelV3 } from '@/components/dashboard-v2/admin-ops-panel-v3';
 import { AdminBottomPanelsV3 } from '@/components/dashboard-v2/admin-bottom-panels-v3';
 import {
   DropdownMenu,
@@ -330,7 +331,7 @@ export function StreamActions({ streams: initialStreams, error = null, userType 
            </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_330px]">
             <div>
 
             {filteredStreams.length > 0 ? (
@@ -364,7 +365,16 @@ export function StreamActions({ streams: initialStreams, error = null, userType 
                 </div>
             )}
 
-            </div>          </div>
+            </div>
+            {userType === 'admin' && (
+              <AdminOpsPanelV3
+                streamsCount={streams.length}
+                onlineCount={onlineCount}
+                offlineCount={offlineCount}
+                totalViewers={totalViewers}
+              />
+            )}
+          </div>
         </CardContent>
       </Card>
 
