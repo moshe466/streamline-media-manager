@@ -2,53 +2,60 @@
 
 import { useEffect, useState } from "react";
 
+const DEFAULT_TITLE = "🔧 המערכת נמצאת כעת בשדרוג";
+const DEFAULT_MESSAGE = "אנחנו מבצעים שדרוגים ושיפורים במערכת כדי לספק לכם חוויית שימוש טובה, מהירה ויציבה יותר. נחזור לפעילות מלאה בקרוב. תודה על הסבלנות.";
+const DEFAULT_GIF = "/maintenance.gif";
+
 export default function AdminMaintenancePage() {
   const [enabled, setEnabled] = useState(false);
-  const [title, setTitle] = useState("המערכת בשדרוג");
-  const [message, setMessage] = useState("אנחנו מבצעים שיפורים במערכת. נחזור בקרוב.");
-  const [gifUrl, setGifUrl] = useState("/maintenance.gif");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/maintenance/status", { cache: "no-store" })
       .then(r => r.json())
-      .then(data => {
-        setEnabled(!!data.enabled);
-        setTitle(data.title || "המערכת בשדרוג");
-        setMessage(data.message || "");
-        setGifUrl(data.gifUrl || "/maintenance.gif");
-      });
+      .then(data => setEnabled(!!data.enabled));
   }, []);
 
-  async function save() {
+  async function toggleMaintenance(nextValue: boolean) {
     setSaving(true);
+
     await fetch("/api/maintenance/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled, title, message, gifUrl }),
+      body: JSON.stringify({
+        enabled: nextValue,
+        title: DEFAULT_TITLE,
+        message: DEFAULT_MESSAGE,
+        gifUrl: DEFAULT_GIF,
+      }),
     });
+
+    setEnabled(nextValue);
     setSaving(false);
-    alert("נשמר בהצלחה");
   }
 
   return (
-    <main dir="rtl" className="p-8 max-w-3xl mx-auto space-y-6">
+    <main dir="rtl" className="p-8 max-w-3xl mx-auto space-y-8">
       <h1 className="text-3xl font-bold">מצב שדרוג מערכת</h1>
 
-      <label className="flex items-center gap-3 text-lg">
-        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />
-        הפעל דף שדרוג לכל המשתמשים
-      </label>
+      <div className="rounded-2xl border p-8 bg-white/5 space-y-6">
+        <div>
+          <h2 className="text-xl font-bold">
+            {enabled ? "מצב שדרוג פעיל" : "מצב שדרוג כבוי"}
+          </h2>
+          <p className="text-sm opacity-70 mt-2">
+            בלחיצה אחת ניתן להעביר את כל המשתמשים לדף שדרוג אוטומטי.
+          </p>
+        </div>
 
-      <input className="w-full border rounded p-3" value={title} onChange={e => setTitle(e.target.value)} />
-
-      <textarea className="w-full border rounded p-3 min-h-28" value={message} onChange={e => setMessage(e.target.value)} />
-
-      <input dir="ltr" className="w-full border rounded p-3" value={gifUrl} onChange={e => setGifUrl(e.target.value)} />
-
-      <button onClick={save} disabled={saving} className="bg-black text-white rounded px-6 py-3">
-        {saving ? "שומר..." : "שמור"}
-      </button>
+        <button
+          disabled={saving}
+          onClick={() => toggleMaintenance(!enabled)}
+          className={`rounded-xl px-8 py-4 font-bold text-white ${enabled ? "bg-red-600" : "bg-green-600"}`}
+        >
+          {saving ? "מעדכן..." : enabled ? "כבה מצב שדרוג" : "הפעל מצב שדרוג"}
+        </button>
+      </div>
     </main>
   );
 }

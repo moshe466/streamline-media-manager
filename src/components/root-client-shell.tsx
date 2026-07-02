@@ -48,6 +48,38 @@ export function RootClientShell({ children }: { children: React.ReactNode }) {
     if (icon) icon.setAttribute("href", logoUrl);
   }, [brandName, manifestUrl, logoUrl]);
 
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const checkMaintenance = async () => {
+      const currentPath = window.location.pathname;
+
+      const excluded =
+        currentPath.startsWith("/admin") ||
+        currentPath.startsWith("/api") ||
+        currentPath.startsWith("/maintenance") ||
+        currentPath.startsWith("/_next");
+
+      if (excluded) return;
+
+      try {
+        const res = await fetch("/api/maintenance/status", { cache: "no-store" });
+        const data = await res.json();
+
+        if (data?.enabled) {
+          window.location.href = "/maintenance";
+        }
+      } catch {}
+    };
+
+    checkMaintenance();
+
+    const maintenanceInterval = window.setInterval(checkMaintenance, 5000);
+
+    return () => window.clearInterval(maintenanceInterval);
+  }, [pathname]);
+
   return (
     <>
       {children}

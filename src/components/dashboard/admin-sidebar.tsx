@@ -40,6 +40,7 @@ import {
   Signal,
   RadioTower,
   Target,
+  Construction,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Logo } from '../logo';
@@ -104,6 +105,7 @@ export function AdminSidebar({ handleLogout }: AdminSidebarProps) {
     { href: '/admin/links', label: 'קישורים מהירים', icon: Link2, roles: ['super-admin', 'admin', 'editor'] },
     { href: '/admin/logos', label: 'לוגואים', icon: ImageIcon, roles: ['super-admin', 'admin', 'editor'] },
     { href: '/admin/backup', label: 'גיבוי ושחזור', icon: History, roles: ['super-admin', 'admin'], permission: 'canAccessBackup' },
+    { href: '/admin/maintenance', label: 'מצב שדרוג מערכת', icon: Construction, roles: ['super-admin', 'admin'] },
     { href: '/admin/whats-new', label: 'ניהול מה חדש', icon: Megaphone, roles: ['super-admin', 'admin'] },
     { href: '/admin/development', label: 'פיתוח', icon: Code, roles: ['super-admin', 'admin'] },
     { href: '/admin/telegram-logs', label: 'התראות טלגרם', icon: Bell, roles: ['super-admin', 'admin'] },
