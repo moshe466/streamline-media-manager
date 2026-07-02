@@ -72,11 +72,11 @@ export function StatusCards({ initialServerStatus, isDbConnected }: { initialSer
     };
 
     return (
-        <div className="grid gap-4 xl:grid-cols-3">
-            <Card className="admin-glass-card">
+        <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">שרת MIZRACHI-TV</CardTitle>
-                    <Server className="h-5 w-5 text-cyan-300" />
+                    <Server className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                      <ServerStatusIndicator 
@@ -84,19 +84,19 @@ export function StatusCards({ initialServerStatus, isDbConnected }: { initialSer
                         tooltipText={getTooltipText()}
                     />
                     {isClient && (
-                         <p className="text-xs text-cyan-300 mt-2 text-right">
+                         <p className="text-xs text-muted-foreground mt-2 text-right">
                            בדיקה אחרונה: {lastChecked.toLocaleTimeString('he-IL')}
                         </p>
                     )}
                 </CardContent>
             </Card>
              <Card 
-                className="admin-glass-card cursor-pointer transition-all hover:-translate-y-1 hover:border-cyan-400/25"
+                className="bg-card hover:bg-muted/50 cursor-pointer transition-colors"
                 onClick={() => router.push('/admin/status')}
              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">סטטוס מסד נתונים</CardTitle>
-                    <Database className="h-5 w-5 text-cyan-300" />
+                    <Database className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-end gap-2">
@@ -112,17 +112,17 @@ export function StatusCards({ initialServerStatus, isDbConnected }: { initialSer
                            </>
                         )}
                     </div>
-                    <p className="text-xs text-cyan-300 mt-2">החיבור ל-Firestore</p>
+                    <p className="text-xs text-muted-foreground mt-2">החיבור ל-Firestore</p>
                 </CardContent>
             </Card>
-            <Card className="admin-glass-card">
+            <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">מצב אפליקציה</CardTitle>
-                    <AppWindow className="h-5 w-5 text-cyan-300" />
+                    <AppWindow className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <AppStatusIndicator active={true} />
-                    <p className="text-xs text-cyan-300 mt-2">המערכת פועלת כמצופה</p>
+                    <p className="text-xs text-muted-foreground mt-2">המערכת פועלת כמצופה</p>
                 </CardContent>
             </Card>
         </div>

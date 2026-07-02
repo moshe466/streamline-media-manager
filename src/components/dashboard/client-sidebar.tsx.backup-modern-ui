@@ -194,14 +194,14 @@ export function ClientSidebar({ handleLogout }: ClientSidebarProps) {
 
   if (isLoading) {
       return (
-          <Sidebar side="left" className="border-r border-cyan-500/10 bg-slate-950/85 backdrop-blur-xl">
+          <Sidebar side="left" className="border-r border-border/50">
             <SidebarHeader><div className="flex items-center justify-center p-4"><Skeleton className="h-[75px] w-[150px] rounded-md" /></div></SidebarHeader>
              <SidebarMenu className="flex-1 px-4 space-y-2">
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
             </SidebarMenu>
-            <SidebarFooter className="p-4 border-t border-cyan-500/10">
+            <SidebarFooter className="p-4">
                  <Skeleton className="h-8 w-full" />
                  <Skeleton className="h-8 w-full" />
             </SidebarFooter>

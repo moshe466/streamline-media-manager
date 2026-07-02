@@ -1,0 +1,246 @@
+import Link from "next/link";
+import {
+  RadioTower,
+  Wifi,
+  WifiOff,
+  Database,
+  Server,
+  Users,
+  Activity,
+  Eye,
+  Settings,
+  ExternalLink,
+  Zap,
+  ShieldCheck,
+} from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Button } from "@/components/ui/button";
+import { StreamCardImage } from "@/components/dashboard/stream-card-image";
+import {
+  LiveAlertsTicker,
+  MiniMcrPanel,
+  ActivityFeed,
+  WeatherStrip,
+  SystemHealthRing,
+  AdvancedStreamHoverGrid,
+} from "@/components/dashboard-v3/control-room-widgets-v3";
+import { CriticalAlertsPanel } from "@/components/dashboard-v3/critical-alerts-panel";
+import type { FlussonicStream } from "@/services/flussonic-types";
+
+type Props = {
+  streams: FlussonicStream[];
+  initialServerStatus: any;
+  firestoreResult: any;
+};
+
+function getViewerCount(stream: any) {
+  return Number(stream?.stats?.client_count ?? stream?.stats?.clients ?? stream?.client_count ?? 0);
+}
+
+export function AdminDashboardV3({
+  streams,
+  initialServerStatus,
+  firestoreResult,
+}: Props) {
+  const onlineStreams = streams.filter((stream: any) => stream.status === "online");
+  const offlineStreams = streams.filter((stream: any) => stream.status === "offline");
+  const featuredStreams = [...onlineStreams, ...offlineStreams].slice(0, 8);
+  const totalViewers = streams.reduce((sum: number, stream: any) => sum + getViewerCount(stream), 0);
+  const isServerOnline = !!initialServerStatus?.success;
+  const isDbConnected = !!firestoreResult?.success;
+
+  return (
+    <div className="admin-control-bg  min-h-[calc(100vh-4rem)] w-full max-w-full overflow-x-hidden p-3 sm:p-4 lg:p-6 space-y-6 text-right">
+      <section className="admin-glass-card p-6">
+        <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="space-y-3">
+            <div className="text-[11px] tracking-[0.35em] text-cyan-300">
+              מרכז שידורים ארצי
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-l from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent">
+              מרכז השליטה של MIZRACHI.TV
+            </h1>
+
+            <p className="text-slate-400 max-w-2xl">
+              ניהול שידורים, צופים ושרתים בזמן אמת
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3 w-full">
+            <KpiCard title="סה״כ שידורים" value={streams.length} icon={<RadioTower className="h-5 w-5 text-cyan-300" />} />
+            <KpiCard title="פעילים" value={onlineStreams.length} color="green" icon={<Wifi className="h-5 w-5 text-emerald-300" />} />
+            <KpiCard title="לא פעילים" value={offlineStreams.length} color="red" icon={<WifiOff className="h-5 w-5 text-red-300" />} />
+            <KpiCard title="צופים עכשיו" value={totalViewers} icon={<Eye className="h-5 w-5 text-cyan-300" />} />
+            <KpiCard title="Firestore" value={isDbConnected ? "פעיל" : "מנותק"} color={isDbConnected ? "green" : "red"} icon={<Database className="h-5 w-5 text-cyan-300" />} />
+          </div>
+        </div>
+      </section>
+
+      <LiveAlertsTicker streams={streams} isServerOnline={isServerOnline} isDbConnected={isDbConnected} />
+
+      <WeatherStrip />
+
+      <section className="grid gap-6 grid-cols-1 grid-cols-1">
+        <div className="admin-glass-card p-5">
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/streams">
+                <ExternalLink className="ml-2 h-4 w-4" />
+                לכל השידורים
+              </Link>
+            </Button>
+
+            <div>
+              <h2 className="text-xl font-bold text-cyan-100">שידורים חיים וניטור ערוצים</h2>
+              <p className="text-sm text-slate-500">תצוגת חדר בקרה לערוצי השידור המרכזיים</p>
+            </div>
+          </div>
+
+          {featuredStreams.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {featuredStreams.map((stream: any) => {
+                const isOnline = stream.status === "online";
+                const viewers = getViewerCount(stream);
+
+                return (
+                  <Link
+                    key={stream.name}
+                    href={`/admin/streams/${encodeURIComponent(stream.name)}`}
+                    className="group rounded-2xl border border-cyan-400/10 bg-slate-950/70 overflow-hidden hover:border-cyan-400/35 transition-all hover:-translate-y-1"
+                  >
+                    <div className="relative aspect-[16/8] bg-slate-950 overflow-hidden">
+                      {isOnline ? (
+                        <StreamCardImage stream={stream} />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,212,255,.10),transparent_48%),linear-gradient(135deg,#020817,#010611)]">
+                          <WifiOff className="h-8 w-8 text-red-300/80 mb-2" />
+                          <div className="text-xs text-slate-500">אין מקור שידור פעיל</div>
+                        </div>
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/25 to-transparent" />
+
+                      <div className={`absolute top-2 right-2 rounded-full px-2 py-1 text-[11px] border backdrop-blur-md ${
+                        isOnline
+                          ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-200"
+                          : "bg-red-500/15 border-red-400/25 text-red-200"
+                      }`}>
+                        {isOnline ? "פעיל" : "לא פעיל"}
+                      </div>
+
+                      <div className="absolute bottom-2 right-2 left-2 flex items-end justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] tracking-[0.24em] text-cyan-300/70">ערוץ</div>
+                          <div className="font-bold text-white truncate">{stream.name}</div>
+                        </div>
+                        <div className="text-xs text-cyan-100 rounded-full border border-cyan-400/10 bg-cyan-500/10 px-2 py-1">
+                          {viewers} צופים
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-cyan-400/10 bg-slate-950/60 p-10 text-center text-slate-400">
+              לא נמצאו שידורים להצגה.
+            </div>
+          )}
+        </div>
+
+        <aside className="space-y-6">
+          <div className="admin-glass-card p-5">
+            <h2 className="text-xl font-bold text-cyan-100 mb-4">סטטוס תפעולי</h2>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-cyan-400/10 bg-slate-950/70 p-4 flex items-center justify-between">
+                <div className={isServerOnline ? "text-emerald-300" : "text-red-300"}>
+                  {isServerOnline ? "מחובר" : "מנותק"}
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  שרת מדיה
+                  <Server className="h-4 w-4 text-cyan-300" />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-cyan-400/10 bg-slate-950/70 p-4 flex items-center justify-between">
+                <div className={isDbConnected ? "text-emerald-300" : "text-red-300"}>
+                  {isDbConnected ? "פעיל" : "מנותק"}
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  מסד נתונים
+                  <Database className="h-4 w-4 text-cyan-300" />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-cyan-400/10 bg-slate-950/70 p-4 flex items-center justify-between">
+                <div className="text-cyan-300">{onlineStreams.length}/{streams.length}</div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  זמינות שידורים
+                  <ShieldCheck className="h-4 w-4 text-cyan-300" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-glass-card p-5">
+            <h2 className="text-xl font-bold text-cyan-100 mb-4">קיצורי פעולה</h2>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button asChild variant="outline">
+                <Link href="/admin/streams">שידורים</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/live-status">סטטוס חי</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/viewers">צופים</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/mcr">קונטרול</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/clients">לקוחות</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/admin/logs">לוגים</Link>
+              </Button>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <MiniMcrPanel streams={streams} />
+
+      <CriticalAlertsPanel streams={streams} />
+
+      <AdvancedStreamHoverGrid streams={streams} />
+
+      <section className="grid grid-cols-1 gap-6 2xl:grid-cols-3">
+        <ActivityFeed
+          streams={streams}
+          isServerOnline={isServerOnline}
+          isDbConnected={isDbConnected}
+        />
+
+        <div className="admin-glass-card p-5">
+          <h2 className="text-xl font-bold text-cyan-100 mb-4">מדדי שידור</h2>
+          <div className="h-32 rounded-2xl border border-cyan-400/10 bg-[linear-gradient(to_top,rgba(0,212,255,.10),transparent),repeating-linear-gradient(to_right,rgba(148,163,184,.08)_0_1px,transparent_1px_42px)] relative overflow-hidden">
+            <div className="absolute bottom-8 right-6 left-6 h-[2px] bg-cyan-400 shadow-[0_0_18px_rgba(0,212,255,.8)]" />
+            <div className="absolute bottom-14 right-16 h-[2px] w-20 md:w-32 rotate-[14deg] bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,.8)]" />
+            <div className="absolute bottom-20 right-28 md:right-44 h-[2px] w-24 md:w-40 rotate-[-10deg] bg-cyan-300 shadow-[0_0_18px_rgba(0,212,255,.8)]" />
+          </div>
+        </div>
+
+        <SystemHealthRing
+          isServerOnline={isServerOnline}
+          isDbConnected={isDbConnected}
+          onlineCount={onlineStreams.length}
+          totalStreams={streams.length}
+        />
+      </section>
+    </div>
+  );
+}

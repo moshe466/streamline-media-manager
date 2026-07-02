@@ -37,17 +37,17 @@ export async function StatsCards({ streams }: StatsCardsProps) {
     ];
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {stats.map((stat, index) => (
                  <Link href={stat.href} key={index} className="flex">
-                    <Card className="admin-glass-card w-full transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/25">
+                    <Card className="bg-card w-full hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                            <stat.icon className="h-5 w-5 text-cyan-300" />
+                            <stat.icon className="h-5 w-5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-5xl font-bold text-cyan-200">{typeof stat.value === "object" ? JSON.stringify(stat.value) : stat.value}</div>
-                            <p className="text-xs text-cyan-300">{stat.description}</p>
+                            <div className="text-4xl font-bold text-primary">{typeof stat.value === "object" ? JSON.stringify(stat.value) : stat.value}</div>
+                            <p className="text-xs text-muted-foreground">{stat.description}</p>
                         </CardContent>
                     </Card>
                 </Link>

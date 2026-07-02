@@ -126,20 +126,20 @@ export function AdminSidebar({ handleLogout }: AdminSidebarProps) {
 
 
   return (
-    <Sidebar side="left" className="border-r border-cyan-500/10 bg-slate-950/85 backdrop-blur-xl">
+    <Sidebar side="left" className="border-r border-border/50">
       <SidebarHeader>
         <div className="flex items-center justify-center p-4">
             <Logo className="h-[75px] w-[150px]" />
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu className="px-4 space-y-1">
+        <SidebarMenu className="px-4">
             {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith(item.href)}
-                className="justify-start rounded-xl border border-transparent text-slate-300 hover:border-cyan-400/20 hover:bg-cyan-500/10 hover:text-cyan-100 data-[active=true]:border-cyan-400/30 data-[active=true]:bg-cyan-500/15 data-[active=true]:text-cyan-100"
+                className="justify-start"
                 >
                 <Link href={item.href} onClick={() => setOpenMobile(false)}>
                     <item.icon className="h-5 w-5" />
@@ -153,7 +153,7 @@ export function AdminSidebar({ handleLogout }: AdminSidebarProps) {
             ))}
         </SidebarMenu>
        </SidebarContent>
-      <SidebarFooter className="p-4 border-t border-cyan-500/10">
+      <SidebarFooter className="p-4">
         <SidebarSeparator />
          <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/admin/connections'} className="mt-2 justify-start">

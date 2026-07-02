@@ -1,0 +1,68 @@
+
+
+import { StatsCards } from "@/components/dashboard/stats-cards";
+import { StatusCards } from "@/components/dashboard/status-cards";
+import { QuickLinksCard } from "@/components/dashboard/quick-links-card";
+import { getStreams, checkFlussonicStatus } from "@/services/flussonic";
+import { testFirestoreConnectionAction } from "@/actions/test-firestore-action";
+import { RealtimeStatusGraphs } from "@/components/dashboard/realtime-status-graphs";
+import { getSystemCredentials } from "@/services/users";
+import { LinkViewersCard } from "@/components/dashboard/link-viewers-card";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { RadioTower, Wifi, WifiOff, Database } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export default async function AdminDashboardPage() {
+  const creds = await getSystemCredentials();
+  const isFlussonicConfigured = (creds.flussonicServers && creds.flussonicServers.length > 0) || (creds.flussonicHost && creds.flussonicUsername);
+
+  // We only pre-fetch the initial data. The StatusCards component will handle periodic updates.
+  const [streams, initialServerStatus, firestoreResult] = await Promise.all([
+    isFlussonicConfigured ? getStreams().catch(() => []) : Promise.resolve([]),
+    isFlussonicConfigured ? checkFlussonicStatus() : Promise.resolve({ success: false, error: "Not configured" }),
+    testFirestoreConnectionAction()
+  ]);
+
+  const isDbConnected = firestoreResult.success;
+  const onlineCount = streams.filter((s: any) => s.status === "online").length;
+  const offlineCount = streams.filter((s: any) => s.status === "offline").length;
+
+  return (
+    <div className="space-y-8 text-right">
+      <section className="admin-glass-card p-6">
+        <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="text-[11px] tracking-[0.35em] text-cyan-300">מרכז שליטה</div>
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight bg-gradient-to-l from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent">
+              לוח מחוונים - מנהל
+            </h1>
+            <p className="text-slate-400">
+              סקירה חיה של שידורים, שרתים, מסד נתונים ופעילות מערכת.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 w-full xl:w-auto">
+            <KpiCard title="סה״כ שידורים" value={streams.length} icon={<RadioTower className="h-5 w-5 text-cyan-300" />} />
+            <KpiCard title="שידורים פעילים" value={onlineCount} color="green" icon={<Wifi className="h-5 w-5 text-emerald-300" />} />
+            <KpiCard title="לא פעילים" value={offlineCount} color="red" icon={<WifiOff className="h-5 w-5 text-red-300" />} />
+            <KpiCard title="Firestore" value={isDbConnected ? "פעיל" : "מנותק"} color={isDbConnected ? "green" : "red"} icon={<Database className="h-5 w-5 text-cyan-300" />} />
+          </div>
+        </div>
+      </section>
+      
+      <RealtimeStatusGraphs 
+        initialFlussonicStatus={initialServerStatus}
+        initialDbStatus={firestoreResult}
+      />
+      <StatusCards 
+        initialServerStatus={initialServerStatus} 
+        isDbConnected={isDbConnected} 
+      />
+      <StatsCards streams={streams} />
+      <LinkViewersCard />
+      <QuickLinksCard />
+    </div>
+  );
+}
