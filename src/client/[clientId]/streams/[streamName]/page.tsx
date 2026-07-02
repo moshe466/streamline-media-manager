@@ -238,7 +238,7 @@ export default function ClientStreamDetailsPage() {
             case 'mss': url = `http://${domainHost}/${currentStreamName}.isml/manifest`; break;
             case 'tshttp': url = `http://${domainHost}/${currentStreamName}`; break;
             case 'rtsp': url = `rtsp://${ipHost}:1933/${currentStreamName}`; break;
-            case 'player': url = `http://${domainHost}/${currentStreamName}/embed.html`; break;
+            case 'player': url = `http://${domainHost}/${currentStreamName}/embed.html?proto=mse&realtime=true&dvr=false`; break;
             default: url = `No URL defined for ${protocolKey}`;
         }
         navigator.clipboard.writeText(url).then(() => {

@@ -15,7 +15,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 
 function LiveVideoPlayer({ streamName, host, iframeRef }: { streamName: string, host: string, iframeRef: React.RefObject<HTMLIFrameElement> }) {
-    const videoSrc = `https://${host}/${streamName}/embed.html?dvr=false&realtime=true&muted=true`;
+    const videoSrc = `https://${host}/${streamName}/embed.html?proto=mse&dvr=false&realtime=true&muted=true`;
 
     return (
         <div className="w-full h-full bg-black rounded-md overflow-hidden">

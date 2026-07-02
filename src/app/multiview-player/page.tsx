@@ -14,7 +14,7 @@ import { Logo } from '@/components/logo';
 
 const VideoPlayer = ({ streamName, host }: { streamName: string, host: string }) => {
     if (!host) return <div className="w-full h-full bg-black rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>;
-    const videoSrc = `https://${host}/${streamName}/embed.html?dvr=false&realtime=true&muted=true`;
+    const videoSrc = `https://${host}/${streamName}/embed.html?proto=mse&dvr=false&realtime=true&muted=true`;
     return (
         <div className="w-full h-full bg-black rounded-sm overflow-hidden">
             <iframe

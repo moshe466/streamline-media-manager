@@ -239,7 +239,7 @@ export default function ClientStreamDetailsPage() {
         switch (protocolKey) {
             case 'rtmp': url = `rtmp://${ingestHost}:1935/static/${currentStreamName}`; break;
             case 'hls': url = `https://${ingestHost}/${currentStreamName}/index.m3u8`; break;
-            default: url = `https://${ingestHost}/${currentStreamName}/embed.html`;
+            default: url = `https://${ingestHost}/${currentStreamName}/embed.html?proto=mse&realtime=true&dvr=false`;
         }
         navigator.clipboard.writeText(url);
         setCopiedProtocol(protocolKey);
@@ -337,7 +337,7 @@ export default function ClientStreamDetailsPage() {
             <Dialog open={!!viewingStreamName} onOpenChange={(isOpen) => !isOpen && setViewingStreamName(null)}>
                 <DialogContent className="max-w-4xl p-0">
                     <div className="aspect-video">
-                        {viewingStreamName && flussonicPublicHost && <iframe src={`https://${flussonicPublicHost}/${viewingStreamName}/embed.html`} allowFullScreen className="w-full h-full border-0"></iframe>}
+                        {viewingStreamName && flussonicPublicHost && <iframe src={`https://${flussonicPublicHost}/${viewingStreamName}/embed.html?proto=mse&realtime=true&dvr=false`} allowFullScreen className="w-full h-full border-0"></iframe>}
                     </div>
                 </DialogContent>
             </Dialog>

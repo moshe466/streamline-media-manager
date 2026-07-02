@@ -264,7 +264,7 @@ export function StreamActions({ streams: initialStreams, error = null, userType 
           <div className="aspect-video">
             {viewingStreamName && previewHost && (
                <iframe
-                  src={`https://${previewHost}/${viewingStreamName}/embed.html`}
+                  src={`https://${previewHost}/${viewingStreamName}/embed.html?proto=mse&realtime=true&dvr=false`}
                   allowFullScreen
                   className="w-full h-full border-0"
                 ></iframe>
