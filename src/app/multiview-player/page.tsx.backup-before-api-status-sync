@@ -3,13 +3,20 @@
 import { memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, Loader2, Tv } from 'lucide-react';
-import { getFlussonicConnectionDetails } from '@/services/flussonic';
+import { getStreams, getFlussonicConnectionDetails, type FlussonicStream } from '@/services/flussonic';
 import { getAndConsumeMultiviewSettings } from '@/services/multiview-tokens';
 import { type MultiviewSettings } from '@/services/users';
+import { getClientById } from '@/services/clients';
 import { Logo } from '@/components/logo';
 
 const arraysEqual = (a: string[], b: string[]) =>
   a.length === b.length && a.every((value, index) => value === b[index]);
+
+const statusEqual = (a: Record<string, string>, b: Record<string, string>) => {
+  const ak = Object.keys(a);
+  const bk = Object.keys(b);
+  return ak.length === bk.length && ak.every((key) => a[key] === b[key]);
+};
 
 const VideoPlayer = memo(function VideoPlayer({ streamName, host }: { streamName: string; host: string }) {
   if (!host) {
@@ -25,7 +32,7 @@ const VideoPlayer = memo(function VideoPlayer({ streamName, host }: { streamName
     host +
     '/' +
     streamName +
-    '/embed.html?proto=mse&dvr=false&realtime=true&muted=true&autoplay=true&controls=false&chromeless=true&liveSyncDurationCount=3&quality=lowest';
+    '/embed.html?proto=mse&dvr=false&realtime=true&muted=true&autoplay=true&controls=false&chromeless=true&liveSyncDurationCount=6&quality=low';
 
   return (
     <iframe
@@ -50,13 +57,14 @@ function MultiviewPlayerContent() {
 
   const [settings, setSettings] = useState<MultiviewSettings | null>(null);
   const [publicHost, setPublicHost] = useState('');
-  const [onlineStreams, setOnlineStreams] = useState<string[]>([]);
-  const [gridColumns, setGridColumns] = useState(2);
+  const [streamsStatus, setStreamsStatus] = useState<Record<string, string>>({});
+  const [allowedNames, setAllowedNames] = useState<string[]>([]);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const onlineRef = useRef<string[]>([]);
+  const statusRef = useRef<Record<string, string>>({});
+  const allowedRef = useRef<string[]>([]);
   const settingsRef = useRef<MultiviewSettings | null>(null);
 
   useEffect(() => {
@@ -94,7 +102,6 @@ function MultiviewPlayerContent() {
 
         settingsRef.current = result;
         setSettings(result);
-        setGridColumns(result.gridColumns || 2);
         setPublicHost(connection.publicHost);
         setIsLoadingSettings(false);
 
@@ -120,7 +127,6 @@ function MultiviewPlayerContent() {
           const parsed = JSON.parse(cached);
           settingsRef.current = parsed;
           setSettings(parsed);
-          setGridColumns(parsed.gridColumns || 2);
           setIsLoadingSettings(false);
           return;
         } catch {}
@@ -143,41 +149,48 @@ function MultiviewPlayerContent() {
 
     let cancelled = false;
 
-    const checkStatus = async () => {
+    const refreshChannels = async () => {
       try {
-        const response = await fetch('/api/multiview/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
-          body: JSON.stringify({
-            clientId: settings.clientId,
-            selectedStreams: settings.selectedStreams,
-            gridColumns: settings.gridColumns,
-          }),
+        const [allStreams, client] = await Promise.all([
+          getStreams().catch(() => [] as FlussonicStream[]),
+          settings.clientId ? getClientById(settings.clientId).catch(() => null) : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        const nextStatus: Record<string, string> = {};
+        allStreams.forEach((stream) => {
+          nextStatus[stream.name] = stream.status;
         });
 
-        const data = await response.json();
+        let nextAllowed: string[] = settings.selectedStreams || [];
 
-        if (cancelled || !data?.ok) return;
-
-        const nextOnline = Array.isArray(data.onlineStreams) ? data.onlineStreams : [];
-        const nextColumns = Number(data.gridColumns || settings.gridColumns || 2);
-
-        if (!arraysEqual(onlineRef.current, nextOnline)) {
-          onlineRef.current = nextOnline;
-          setOnlineStreams(nextOnline);
+        if (client) {
+          if (!client.permissions?.hasAllStreamsAccess) {
+            const allowed = Object.keys(client.permissions?.allowedStreams || {});
+            nextAllowed = nextAllowed.filter((name) => allowed.includes(name));
+          }
         }
 
-        setGridColumns(nextColumns);
+        if (!statusEqual(statusRef.current, nextStatus)) {
+          statusRef.current = nextStatus;
+          setStreamsStatus(nextStatus);
+        }
+
+        if (!arraysEqual(allowedRef.current, nextAllowed)) {
+          allowedRef.current = nextAllowed;
+          setAllowedNames(nextAllowed);
+        }
+
         setIsLoadingChannels(false);
       } catch (err) {
-        console.error('multiview status api error:', err);
+        console.error('channels refresh error:', err);
         setIsLoadingChannels(false);
       }
     };
 
-    checkStatus();
-    const interval = setInterval(checkStatus, 15000);
+    refreshChannels();
+    const interval = setInterval(refreshChannels, 30000);
 
     return () => {
       cancelled = true;
@@ -185,9 +198,9 @@ function MultiviewPlayerContent() {
     };
   }, [settings]);
 
-  const rows = useMemo(() => {
-    return Math.max(1, Math.ceil(onlineStreams.length / Math.max(gridColumns, 1)));
-  }, [onlineStreams.length, gridColumns]);
+  const onlineStreams = useMemo(() => {
+    return allowedNames.filter((name) => streamsStatus[name] === 'online');
+  }, [allowedNames, streamsStatus]);
 
   if (isLoadingSettings) return <LoadingScreen text="טוען את הגדרות קיר המסכים..." />;
 
@@ -213,49 +226,22 @@ function MultiviewPlayerContent() {
     );
   }
 
+  const columns = settings?.gridColumns || 2;
+  const rows = Math.max(1, Math.ceil(onlineStreams.length / columns));
+
   return (
     <main
       className="grid h-screen w-screen overflow-hidden bg-black"
       style={{
-        gridTemplateColumns: 'repeat(' + gridColumns + ', minmax(0, 1fr))',
+        gridTemplateColumns: 'repeat(' + columns + ', minmax(0, 1fr))',
         gridTemplateRows: 'repeat(' + rows + ', minmax(0, 1fr))',
         gap: '1px',
         padding: '1px',
       }}
     >
       {onlineStreams.map((name) => (
-        <div
-          key={name}
-          onDoubleClick={(e) => {
-            const element = e.currentTarget;
-
-            if (document.fullscreenElement) {
-              document.exitFullscreen();
-            } else {
-              element.requestFullscreen();
-            }
-          }}
-          className="relative h-full w-full overflow-hidden bg-black"
-        >
+        <div key={name} className="relative h-full w-full overflow-hidden bg-black">
           <VideoPlayer streamName={name} host={publicHost} />
-
-          <button
-            type="button"
-            aria-label="הגדל או הקטן חלון וידאו"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-
-              const parent = e.currentTarget.parentElement;
-              if (!parent) return;
-
-              if (document.fullscreenElement) {
-                document.exitFullscreen();
-              } else {
-                parent.requestFullscreen();
-              }
-            }}
-            className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-          />
         </div>
       ))}
     </main>

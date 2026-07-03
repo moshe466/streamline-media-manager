@@ -133,8 +133,7 @@ export default function ClientMcrPage() {
 
             const result = await createMultiviewRequest(requestId, {
                 selectedStreams: selectedStreamNames,
-                gridColumns: gridColumns,
-                clientId: clientId
+                gridColumns: gridColumns
             });
 
             if (!result.success) {

@@ -1,0 +1,227 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { Loader2, Tv, AlertTriangle } from 'lucide-react';
+import { getStreams, getFlussonicConnectionDetails, type FlussonicStream } from '@/services/flussonic';
+import { getAndConsumeMultiviewSettings } from '@/services/multiview-tokens';
+import { type MultiviewSettings } from '@/services/users';
+import { getClientById } from '@/services/clients';
+import { Logo } from '@/components/logo';
+
+const VideoPlayer = ({ streamName, host }: { streamName: string; host: string }) => {
+  if (!host) {
+    return <div className="flex h-full w-full items-center justify-center bg-black"><Loader2 className="h-6 w-6 animate-spin text-cyan-300" /></div>;
+  }
+
+  const videoSrc =
+    'https://' +
+    host +
+    '/' +
+    streamName +
+    '/embed.html?proto=hls&dvr=false&muted=true&autoplay=true&controls=false&chromeless=true&quality=lowest';
+
+  return <iframe src={videoSrc} allowFullScreen allow="autoplay" className="h-full w-full border-0 bg-black" />;
+};
+
+const LoadingScreen = () => (
+  <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+    <Logo className="mb-8 h-24 w-48" />
+    <Loader2 className="h-12 w-12 animate-spin text-cyan-300" />
+    <p className="mt-4 text-lg">טוען קיר מסכים...</p>
+  </div>
+);
+
+function MultiviewPlayerContent() {
+  const searchParams = useSearchParams();
+
+  const [settings, setSettings] = useState<MultiviewSettings | null>(null);
+  const [publicHost, setPublicHost] = useState('');
+  const [streamsStatus, setStreamsStatus] = useState<Record<string, string>>({});
+  const [allowedNames, setAllowedNames] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const requestIdRef = useRef<string | null>(null);
+  const clientIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const requestId = searchParams.get('reqId');
+    requestIdRef.current = requestId;
+
+    if (!requestId) {
+      setError('מזהה בקשה לא סופק. לא ניתן לטעון את הנגן.');
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const loadOnce = async (): Promise<boolean> => {
+      try {
+        const cacheKey = 'multiview-settings-' + requestId;
+        const cached = sessionStorage.getItem(cacheKey);
+
+        const fetchedSettings: MultiviewSettings | null = cached
+          ? JSON.parse(cached)
+          : await getAndConsumeMultiviewSettings(requestId);
+
+        if (!fetchedSettings) {
+          return false;
+        }
+
+        if (!cached) {
+          sessionStorage.setItem(cacheKey, JSON.stringify(fetchedSettings));
+        }
+
+        clientIdRef.current = fetchedSettings.clientId || null;
+
+        const connection = await getFlussonicConnectionDetails();
+
+        if (cancelled) return true;
+
+        setSettings(fetchedSettings);
+        setPublicHost(connection.publicHost);
+        setIsLoading(false);
+
+        if (pollInterval) clearInterval(pollInterval);
+        if (timeoutId) clearTimeout(timeoutId);
+
+        return true;
+      } catch (err) {
+        console.error(err);
+        return false;
+      }
+    };
+
+    loadOnce();
+
+    pollInterval = setInterval(loadOnce, 1000);
+
+    timeoutId = setTimeout(() => {
+      if (pollInterval) clearInterval(pollInterval);
+
+      const cached = sessionStorage.getItem('multiview-settings-' + requestId);
+      if (cached) {
+        try {
+          const cachedSettings = JSON.parse(cached);
+          setSettings(cachedSettings);
+          clientIdRef.current = cachedSettings.clientId || null;
+          setIsLoading(false);
+          return;
+        } catch {}
+      }
+
+      if (!cancelled) {
+        setError('לא ניתן היה לטעון את הגדרות הצפייה. אנא פתח חלון חדש מה-MCR.');
+        setIsLoading(false);
+      }
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      if (pollInterval) clearInterval(pollInterval);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const allStreams = await getStreams().catch(() => [] as FlussonicStream[]);
+
+        const statusMap: Record<string, string> = {};
+        allStreams.forEach((stream) => {
+          statusMap[stream.name] = stream.status;
+        });
+
+        setStreamsStatus(statusMap);
+
+        const clientId = clientIdRef.current;
+
+        if (!clientId) {
+          setAllowedNames(settings?.selectedStreams || []);
+          return;
+        }
+
+        const client = await getClientById(clientId);
+
+        if (!client) {
+          setAllowedNames([]);
+          return;
+        }
+
+        const selected = settings?.selectedStreams || [];
+
+        if (client.permissions?.hasAllStreamsAccess) {
+          setAllowedNames(selected);
+        } else {
+          const allowed = Object.keys(client.permissions?.allowedStreams || {});
+          setAllowedNames(selected.filter((name) => allowed.includes(name)));
+        }
+      } catch (err) {
+        console.error('refresh error:', err);
+      }
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [settings]);
+
+  if (isLoading) return <LoadingScreen />;
+
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+        <AlertTriangle className="h-12 w-12 text-red-500" />
+        <h1 className="mt-4 text-2xl font-bold">שגיאה</h1>
+        <p className="mt-2 text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  const onlineStreams = allowedNames.filter((name) => streamsStatus[name] === 'online');
+
+  if (onlineStreams.length === 0) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+        <Tv className="h-12 w-12 text-zinc-600" />
+        <h1 className="mt-4 text-2xl font-bold">אין כרגע שידורים פעילים</h1>
+        <p className="mt-2 text-sm text-zinc-500">הקיר יתעדכן לבד כשערוץ מורשה יחזור ללייב.</p>
+      </div>
+    );
+  }
+
+  const columns = settings?.gridColumns || 2;
+  const rows = Math.max(1, Math.ceil(onlineStreams.length / columns));
+
+  return (
+    <main
+      className="grid h-screen w-screen overflow-hidden bg-black"
+      style={{
+        gridTemplateColumns: 'repeat(' + columns + ', minmax(0, 1fr))',
+        gridTemplateRows: 'repeat(' + rows + ', minmax(0, 1fr))',
+        gap: '1px',
+        padding: '1px',
+      }}
+    >
+      {onlineStreams.map((name) => (
+        <div key={name} className="relative h-full w-full overflow-hidden bg-black">
+          <VideoPlayer streamName={name} host={publicHost} />
+        </div>
+      ))}
+    </main>
+  );
+}
+
+export default function MultiviewPlayerPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <MultiviewPlayerContent />
+    </Suspense>
+  );
+}

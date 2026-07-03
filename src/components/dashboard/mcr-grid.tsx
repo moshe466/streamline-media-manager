@@ -11,9 +11,20 @@ import { cn } from '@/lib/utils';
 import type { FlussonicStream } from '@/services/flussonic';
 import { getFlussonicConnectionDetails } from '@/services/flussonic';
 
-const VideoPlayer = ({ streamName, host }: { streamName: string, host: string }) => {
+const VideoPlayer = ({ streamName, host, index }: { streamName: string, host: string, index: number }) => {
+    const [canLoad, setCanLoad] = useState(index < 8);
+
+    useEffect(() => {
+        if (canLoad) return;
+        const timer = window.setTimeout(() => setCanLoad(true), index * 700);
+        return () => window.clearTimeout(timer);
+    }, [canLoad, index]);
+
+    if (!canLoad) {
+        return <div className="w-full h-full bg-black rounded-md flex items-center justify-center"><p className="text-xs text-muted-foreground">ממתין לטעינת נגן...</p></div>;
+    }
     if (!host) return <div className="w-full h-full bg-black rounded-md flex items-center justify-center"><p className="text-xs text-muted-foreground">טוען...</p></div>;
-    const videoSrc = `https://${host}/${streamName}/embed.html?proto=mse&dvr=false&realtime=true&muted=true`;
+    const videoSrc = `https://${host}/${streamName}/embed.html?proto=mse&dvr=false&realtime=true&muted=true&autoplay=true&controls=false&chromeless=true&liveSyncDurationCount=1&quality=low`;
 
     return (
         <div className="w-full h-full bg-black rounded-md overflow-hidden">
@@ -87,7 +98,7 @@ export function McrGrid({ streams }: { streams: FlussonicStream[] }) {
 
             {filteredStreams.length > 0 ? (
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-1">
-                    {filteredStreams.map(stream => (
+                    {filteredStreams.map((stream, index) => (
                         <Card key={stream.name} className="flex flex-col aspect-video bg-card">
                             <CardHeader className="p-2 border-b">
                                 <CardTitle className="text-sm font-medium truncate flex justify-between items-center" title={stream.name}>
@@ -97,7 +108,7 @@ export function McrGrid({ streams }: { streams: FlussonicStream[] }) {
                             </CardHeader>
                              <CardContent className="flex-1 p-0 flex items-center justify-center">
                                 {stream.status === 'online' && publicHost ? (
-                                    <VideoPlayer streamName={stream.name} host={publicHost} />
+                                    <VideoPlayer streamName={stream.name} host={publicHost} index={index} />
                                 ) : (
                                     <div className="text-muted-foreground text-center">
                                         <VideoOff className="h-8 w-8 mx-auto" />

@@ -387,20 +387,6 @@ function ViewersPageComponent() {
   }
 
 
-  const activeViewersCount = viewers.filter(v => !v.expiresAt || !isPast(parseISO(v.expiresAt))).length;
-  const temporaryViewersCount = viewers.filter(v => !!v.expiresAt).length;
-  const totalPermissionsCount = viewers.reduce((sum, viewer) => {
-    const permissions = Object.values(viewer.permissions || {});
-    return sum + permissions.reduce((innerSum: number, p: any) => innerSum + Number(!!p.canWatchLive) + Number(!!p.canWatchDVR) + Number(!!p.canWatchMCR), 0);
-  }, 0);
-
-  const viewerStats = [
-    { label: 'סה״כ צופים', value: viewers.length, icon: Users, color: 'text-cyan-300' },
-    { label: 'צופים פעילים', value: activeViewersCount, icon: Check, color: 'text-green-300' },
-    { label: 'גישה זמנית', value: temporaryViewersCount, icon: Clock, color: 'text-orange-300' },
-    { label: 'סה״כ הרשאות', value: totalPermissionsCount, icon: ShieldCheck, color: 'text-purple-300' },
-  ];
-
   if (isLoading) {
       return (
           <div className="p-8">
@@ -410,7 +396,7 @@ function ViewersPageComponent() {
   }
 
   return (
-    <div className="client-mission-control space-y-8 text-right p-4 sm:p-6 lg:p-8">
+    <div className="space-y-8 text-right p-4 sm:p-6 lg:p-8">
        {/* --- DIALOGS --- */}
         <AlertDialog open={permissionDeniedDialogOpen} onOpenChange={setPermissionDeniedDialogOpen}>
             <AlertDialogContent className="text-right">
@@ -432,14 +418,14 @@ function ViewersPageComponent() {
             </AlertDialogContent>
         </AlertDialog>
        <Dialog open={dialogOpen} onOpenChange={(isOpen) => { if (!isOpen) resetForm(); setDialogOpen(isOpen); }}>
-          <DialogContent className="sm:max-w-md border-cyan-400/20 bg-slate-950 text-right text-white">
+          <DialogContent className="sm:max-w-md text-right">
                <DialogHeader><DialogTitle>{dialogMode === 'create' ? 'הוספת צופה חדש' : 'עריכת פרטי צופה'}</DialogTitle></DialogHeader>
                <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1"><Label htmlFor="firstName">שם פרטי (חובה)</Label><Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="rounded-2xl border-cyan-400/20 bg-black/30 text-white focus-visible:ring-cyan-400" /></div>
-                    <div className="space-y-1"><Label htmlFor="lastName">שם משפחה (חובה)</Label><Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="rounded-2xl border-cyan-400/20 bg-black/30 text-white focus-visible:ring-cyan-400" /></div>
+                    <div className="space-y-1"><Label htmlFor="firstName">שם פרטי (חובה)</Label><Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
+                    <div className="space-y-1"><Label htmlFor="lastName">שם משפחה (חובה)</Label><Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
                   </div>
-                  <div className="space-y-1"><Label htmlFor="nickname">כינוי (רשות)</Label><Input id="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} className="rounded-2xl border-cyan-400/20 bg-black/30 text-white focus-visible:ring-cyan-400" /></div>
+                  <div className="space-y-1"><Label htmlFor="nickname">כינוי (רשות)</Label><Input id="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} /></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1"><Label htmlFor="phone">טלפון (חובה)</Label><Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr"/></div>
                     <div className="space-y-1"><Label htmlFor="email">אימייל (חובה)</Label><Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={dialogMode === 'edit'} dir="ltr"/></div>
@@ -492,7 +478,7 @@ function ViewersPageComponent() {
           </DialogContent>
        </Dialog>
         <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogContent className="sm:max-w-lg border-cyan-400/20 bg-slate-950 text-right text-white">
+          <DialogContent className="sm:max-w-lg text-right">
                <DialogHeader><DialogTitle>העלאת רשימת צופים מקובץ</DialogTitle></DialogHeader>
                <div className="py-4 space-y-4">
                   <div className="text-sm p-4 bg-muted/50 rounded-md border"><h4 className="font-bold mb-2">פורמט הקובץ הנדרש:</h4><p>השורה הראשונה בקובץ חייבת להיות שורת כותרת.</p><ul className="list-disc list-inside mt-2 font-mono text-xs"><li>firstName (שם פרטי)</li><li>lastName (שם משפחה)</li><li>phone (טלפון)</li><li>email (אימייל)</li><li>nickname (כינוי - אופציונלי)</li></ul><p className="mt-2 text-xs">צופים המועלים בקובץ מקבלים תוקף ברירת מחדל של 24 שעות.</p></div>
@@ -502,7 +488,7 @@ function ViewersPageComponent() {
           </DialogContent>
         </Dialog>
         <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
-            <DialogContent className="sm:max-w-lg border-cyan-400/20 bg-slate-950 text-right text-white">
+            <DialogContent className="sm:max-w-lg text-left">
                 <DialogHeader><DialogTitle>ניהול הרשאות צפייה</DialogTitle><DialogDescription>בחר לאילו שידורים תהיה גישה ל-{selectedViewerIds.length} הצופים שנבחרו. שינויים כאן ידרסו את ההרשאות הקיימות שלהם.</DialogDescription></DialogHeader>
                 <div className="py-4">
                     <ScrollArea className="h-72 w-full rounded-md border p-4">
@@ -543,81 +529,30 @@ function ViewersPageComponent() {
             </DialogContent>
         </Dialog>
 
-      <section className="relative overflow-hidden rounded-[2rem] border border-cyan-400/20 bg-slate-950 p-6 shadow-2xl sm:p-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-slate-950 to-orange-500/10" />
-        <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-cyan-500/20 blur-3xl" />
-        <div className="absolute -bottom-24 right-20 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-4 text-right">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
-              <Users className="h-4 w-4 text-cyan-300" />
-              ניהול צופים
-            </div>
-
-            <div>
-              <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">ניהול צופים</h1>
-              <p className="mt-3 max-w-2xl text-lg text-slate-300">
-                הוספה, עריכה, מחיקה וניהול הרשאות של משתמשי הקצה.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Button data-tour="viewers-add-button" onClick={() => openDialog('create')} className="rounded-full bg-cyan-400 text-black hover:bg-cyan-300">
-              <PlusCircle className="ml-2 h-5 w-5" />
-              הוסף צופה
-            </Button>
-
-            <Button data-tour="viewers-upload-button" variant="outline" onClick={() => setUploadDialogOpen(true)} className="rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10">
-              <Upload className="ml-2 h-5 w-5" />
-              העלאת רשימה
-            </Button>
-          </div>
+      <div className="flex flex-col sm:flex-row-reverse items-center justify-between gap-4">
+        <div className="flex gap-2">
+            <Button data-tour="viewers-upload-button" variant="outline" onClick={() => setUploadDialogOpen(true)}><Upload className="ml-2 h-4 w-4"/>העלאת רשימה</Button>
+            <Button data-tour="viewers-add-button" onClick={() => openDialog('create')}><PlusCircle className="ml-2 h-4 w-4" />הוסף צופה</Button>
         </div>
-      </section>
-
-       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {viewerStats.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Card key={item.label} className="border-white/10 bg-gradient-to-br from-slate-950 to-slate-900/70 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-xl hover:shadow-cyan-500/10">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div className={"rounded-2xl border border-white/10 bg-white/5 p-3 " + item.color}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-black text-white">{item.value}</p>
-                    <p className="mt-1 text-sm text-slate-400">{item.label}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        <div className="space-y-2 text-right mr-0 ml-auto">
+          <h1 className="text-3xl font-bold tracking-tight flex items-center justify-end gap-2">
+            <Users className="h-7 w-7" />
+            ניהול צופים
+          </h1>
+          <p className="text-muted-foreground">הוספה, עריכה ומחיקה של משתמשי קצה (צופים).</p>
+        </div>
       </div>
 
-      <Card className="overflow-hidden border-cyan-400/10 bg-slate-950/70">
-        <CardHeader className="border-b border-white/10">
-            <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-center lg:justify-between">
-                <div className="text-right">
-                    <CardTitle className="text-2xl font-black text-white">כל הצופים</CardTitle>
-                    <CardDescription className="mt-1 text-slate-500">{filteredViewers.length} צופים מוצגים מתוך {viewers.length}</CardDescription>
-                </div>
-
-                <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row">
-                    <div className="relative w-full lg:w-80">
-                        <Search className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                        <Input placeholder="חיפוש לפי שם, אימייל או טלפון..." className="h-11 rounded-full border-cyan-400/20 bg-black/30 pr-10 text-white focus-visible:ring-cyan-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/>
-                    </div>
-
+       <Card>
+        <CardHeader>
+            <div className="flex flex-col sm:flex-row-reverse justify-between items-center gap-2">
+                 <div className="relative w-full sm:max-w-xs"><Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="חיפוש לפי שם, אימייל או טלפון..." className="pr-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
                 {selectedViewerIds.length > 0 ? (
                     <div className="flex gap-2" data-tour="viewers-permissions-button">
-                        <Button onClick={() => openPermissionsDialog()} className="rounded-full bg-cyan-400 text-black hover:bg-cyan-300"><ShieldCheck className="ml-2 h-4 w-4"/>ניהול הרשאות ({selectedViewerIds.length})</Button>
+                        <Button onClick={() => openPermissionsDialog()}><ShieldCheck className="ml-2 h-4 w-4"/>ניהול הרשאות ({selectedViewerIds.length})</Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" disabled={isProcessing} className="rounded-full">
+                                <Button variant="destructive" size="sm" disabled={isProcessing}>
                                     <Trash2 className="ml-2 h-4 w-4" />
                                     מחק ({selectedViewerIds.length})
                                 </Button>
@@ -637,16 +572,14 @@ function ViewersPageComponent() {
                         </AlertDialog>
                     </div>
                 ) : (
-                    <div className="hidden text-sm text-slate-500 lg:flex lg:items-center">בחר צופים כדי לנהל הרשאות או למחוק</div>
+                    <CardTitle className="text-right mr-0 ml-auto">כל הצופים</CardTitle>
                 )}
-                </div>
             </div>
            
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-hidden">
+        <CardContent>
           <Table className="responsive-table viewers-rtl-table">
-            <TableHeader className="bg-white/5">
+            <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]"><Checkbox 
                     checked={isAllInFilteredSelected}
@@ -669,15 +602,15 @@ function ViewersPageComponent() {
                 ))
               ) : filteredViewers.length > 0 ? (
                 filteredViewers.map((viewer) => (
-                  <TableRow key={viewer.id} data-state={selectedViewerIds.includes(viewer.id) && "selected"} className="border-white/10 transition hover:bg-cyan-400/5">
-                    <TableCell className="py-4 text-right align-middle text-slate-300" data-label="בחירה"><Checkbox 
+                  <TableRow key={viewer.id} data-state={selectedViewerIds.includes(viewer.id) && "selected"}>
+                    <TableCell className="text-right align-middle" data-label="בחירה"><Checkbox 
                         checked={selectedViewerIds.includes(viewer.id)}
                         onCheckedChange={(checked) => {
                             setSelectedViewerIds(prev => checked ? [...prev, viewer.id] : prev.filter(id => id !== viewer.id));
                         }}
                         aria-label="Select row"
                     /></TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300" data-label="פעולות">
+                    <TableCell className="text-right align-middle" data-label="פעולות">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0" disabled={actioningViewer === viewer.id}>{actioningViewer === viewer.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}</Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="text-right">
@@ -692,12 +625,12 @@ function ViewersPageComponent() {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300 font-bold text-white" data-label="כינוי">{viewer.nickname}</TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300" data-label="שם מלא">{viewer.firstName} {viewer.lastName}</TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300" data-label="אימייל">{viewer.email}</TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300 font-mono text-xs text-cyan-300" data-label="קוד אימות">{viewer.otp}</TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300 font-mono text-center text-xs text-purple-300" data-label="הרשאות">{getPermissionCount(viewer)}</TableCell>
-                    <TableCell className="py-4 text-right align-middle text-slate-300" data-label="תוקף">
+                    <TableCell className="text-right align-middle" data-label="כינוי" className="font-medium">{viewer.nickname}</TableCell>
+                    <TableCell className="text-right align-middle" data-label="שם מלא">{viewer.firstName} {viewer.lastName}</TableCell>
+                    <TableCell className="text-right align-middle" data-label="אימייל">{viewer.email}</TableCell>
+                    <TableCell className="text-right align-middle" data-label="קוד אימות" className="font-mono text-xs">{viewer.otp}</TableCell>
+                    <TableCell className="text-right align-middle" data-label="הרשאות" className="font-mono text-center text-xs">{getPermissionCount(viewer)}</TableCell>
+                    <TableCell className="text-right align-middle" data-label="תוקף">
                         {isClient && viewer.expiresAt ? (
                             <Badge variant={isPast(parseISO(viewer.expiresAt)) ? 'destructive' : 'secondary'}>
                                 {format(parseISO(viewer.expiresAt), 'dd/MM/yy HH:mm')}
@@ -711,7 +644,6 @@ function ViewersPageComponent() {
               )}
             </TableBody>
           </Table>
-          </div>
         </CardContent>
       </Card>
     </div>

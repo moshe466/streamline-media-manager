@@ -163,7 +163,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-8 text-right">
-      <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col-reverse sm:flex-row-reverse items-center justify-between gap-4">
         <Button asChild>
           <Link href="/admin/users/new">
             <PlusCircle className="ml-2 h-4 w-4" />

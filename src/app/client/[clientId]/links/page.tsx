@@ -127,7 +127,7 @@ export default function ClientLinksPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col-reverse gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                      <Button asChild variant="outline">
                         <Link href={`/client/${clientId}/dashboard`}>
@@ -136,7 +136,7 @@ export default function ClientLinksPage() {
                         </Link>
                     </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 text-right">
                     <h1 className="text-3xl font-bold tracking-tight">ניהול לינקים שימושיים</h1>
                     <p className="text-muted-foreground">
                         הוסף, ערוך ומחק קישורים אישיים. תוכל לבחור אילו מהם יוצגו לצופים שלך.
@@ -146,19 +146,33 @@ export default function ClientLinksPage() {
 
             <Card>
                 <CardHeader>
-                     <div className="flex items-center justify-between">
-                         <Button onClick={() => openDialog('create')}>
-                            <PlusCircle className="ml-2 h-4 w-4" />
-                            הוסף לינק חדש
-                        </Button>
-                        <CardTitle>רשימת הלינקים שלך</CardTitle>
-                    </div>
+                     <div className="flex flex-col-reverse gap-4 md:flex-row md:items-center md:justify-between">
+
+<div className="flex-1 text-right">
+<CardTitle className="text-right">
+רשימת הלינקים שלך
+</CardTitle>
+
+<CardDescription className="mt-1 text-right">
+כל הקישורים האישיים שלך מרוכזים במקום אחד.
+</CardDescription>
+</div>
+
+<Button onClick={() => openDialog('create')}>
+<PlusCircle className="ml-2 h-4 w-4"/>
+הוסף לינק חדש
+</Button>
+
+</div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {client?.links && client.links.length > 0 ? (
                         client.links.map(link => (
-                            <Card key={link.id} className="p-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
+                            <Card
+key={link.id}
+className="p-4 flex flex-col-reverse gap-4 md:flex-row md:items-center md:justify-between"
+>
+                                <div className="flex justify-end gap-2">
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
@@ -183,13 +197,15 @@ export default function ClientLinksPage() {
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold">{link.name}</p>
-                                    <p className="text-sm text-muted-foreground">{link.url}</p>
+                                    <p dir="ltr" className="mt-1 break-all text-sm text-muted-foreground">
+{link.url}
+</p>
                                     {link.showToViewers && <p className="text-xs text-primary">גלוי לצופים</p>}
                                 </div>
                             </Card>
                         ))
                     ) : (
-                        <div className="text-center py-10 text-muted-foreground">
+                        <div className="py-16 text-center text-muted-foreground">
                             <LinkIcon className="mx-auto h-10 w-10"/>
                             <p className="mt-2">עדיין לא הוספת קישורים.</p>
                         </div>

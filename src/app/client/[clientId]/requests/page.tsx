@@ -117,8 +117,8 @@ export default function ClientRequestsPage() {
                                         <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
                                     </TableRow>
                                 ))
-                            ) : requests.length > 0 ? (
-                                requests.map(req => (
+                            ) : (requests || []).length > 0 ? (
+                                (requests || []).map(req => (
                                     <TableRow key={req.id}>
                                         <TableCell data-label="פעולות">
                                             {req.status === 'pending' ? (

@@ -159,22 +159,22 @@ export default function ClientNotificationsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-row-reverse items-center justify-between">
                 <Button asChild variant="outline"><Link href={`/client/${clientId}/dashboard`}><ArrowRight className="ml-2 h-4 w-4"/>חזרה לדשבורד</Link></Button>
                 <div className="text-right space-y-2"><h1 className="text-3xl font-bold tracking-tight">הגדרות התראות</h1><p className="text-muted-foreground">בחר אילו עדכונים ואירועים חשובים לקבל ישירות לטלגרם.</p></div>
             </div>
 
             <Card>
-                 <CardHeader>
-                    <CardTitle className="flex items-center justify-end gap-2">
+                 <CardHeader className="text-right">
+                    <CardTitle style={{ marginLeft: "auto", marginRight: 0, direction: "rtl", justifyContent: "flex-start" }} className="flex items-center gap-2 w-fit text-right">
                         <Bell className="h-5 w-5"/>
                         חיבור וניהול טלגרם
                     </CardTitle>
-                     <CardDescription>
+                     <CardDescription className="text-right">
                         כאן תוכל לחבר את הבוט לקבוצות וערוצים, ולהפעיל או להשבית את קבלת ההתראות.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 text-right">
                     {!isTelegramConnected ? (
                          <div className="text-center p-6 bg-muted/50 rounded-lg">
                             <p className="mb-4">כדי להתחיל, חבר את הבוט לחשבון הטלגרם שלך.</p>
@@ -185,22 +185,22 @@ export default function ClientNotificationsPage() {
                          </div>
                     ) : (
                          <>
-                            <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex flex-row-reverse items-center justify-between p-3 border rounded-lg">
                                  <a href={`https://t.me/Mizrachi_TV_bot?start=${notificationsEnabled ? 'client_stop' : 'client_resume'}`} target="_blank" rel="noopener noreferrer">
                                      <Button variant={notificationsEnabled ? 'destructive' : 'default'}>
                                         {notificationsEnabled ? <StopCircle className="ml-2 h-4 w-4" /> : <PlayCircle className="ml-2 h-4 w-4" />}
                                         {notificationsEnabled ? 'הפסק התראות' : 'הפעל התראות'}
                                     </Button>
                                  </a>
-                                 <div className="text-right">
+                                 <div className="text-right mr-0 ml-auto">
                                     <Label className="font-semibold text-base">מצב קבלת התראות</Label>
                                     <p className="text-sm text-muted-foreground">ההתראות כרגע <span className={notificationsEnabled ? "text-green-400 font-bold" : "text-red-400 font-bold"}>{notificationsEnabled ? "פעילות" : "מושבתות"}</span>.</p>
                                  </div>
                              </div>
-                             <div className="space-y-2 pt-4">
+                             <div className="space-y-2 pt-4 text-right">
                                 <Label className="font-semibold">צ'אטים מחוברים:</Label>
                                 {(client.telegramChats ?? []).map(chat => (
-                                     <div key={chat.id} className="flex items-center justify-between p-2 pl-1 border rounded-md bg-muted/50">
+                                     <div key={chat.id} className="flex flex-row-reverse items-center justify-between p-2 pl-1 border rounded-md bg-muted/50">
                                          <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" disabled={!!isDisconnecting}>
@@ -230,17 +230,24 @@ export default function ClientNotificationsPage() {
             </Card>
 
             <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle className="flex items-center justify-end gap-2"><Tv className="h-5 w-5"/>התראות על מצב שידורים</CardTitle>
-                        <CardDescription>קבל התראה כאשר שידור עולה לאוויר או יורד ממנו.</CardDescription>
+                <CardHeader className="text-right">
+                    <div className="flex flex-row-reverse items-start justify-between gap-6">
+                        <div style={{ marginLeft: "auto", marginRight: 0 }} className="text-right">
+    <CardTitle style={{ marginLeft: "auto", marginRight: 0, direction: "rtl", justifyContent: "flex-start" }} className="flex items-center gap-2 w-fit text-right">
+        <Tv className="h-5 w-5"/>
+        התראות על מצב שידורים
+    </CardTitle>
+    <CardDescription className="mt-2 text-right">
+        קבל התראה כאשר שידור עולה לאוויר או יורד ממנו.
+    </CardDescription>
+</div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 text-right">
                     
                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                             <div className="flex gap-2">
+                        <div className="flex items-center justify-between mb-2">
+                             <div className="flex flex-row-reverse gap-2">
                                 <Button size="sm" variant="outline" onClick={() => handleBulkStreamSettingChange('onStreamOnline', false)}>כבה הכל</Button>
                                 <Button size="sm" variant="outline" onClick={() => handleBulkStreamSettingChange('onStreamOnline', true)}>הפעל הכל</Button>
                             </div>
@@ -249,7 +256,7 @@ export default function ClientNotificationsPage() {
                         <Separator />
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-3">
                            {streams.map(stream => (
-                                <div key={`online-${stream.name}`} className="flex items-center justify-end gap-2 p-2 border rounded-md">
+                                <div key={`online-${stream.name}`} className="flex items-center justify-between gap-3 p-2 border rounded-md">
                                      <Label htmlFor={`online-${stream.name}`} className="flex-grow text-right truncate pr-1">{stream.name}</Label>
                                     <Switch id={`online-${stream.name}`} checked={!!settings.onStreamOnline?.[stream.name]} onCheckedChange={(checked) => handleStreamSettingChange('onStreamOnline', stream.name, checked)} />
                                 </div>
@@ -258,8 +265,8 @@ export default function ClientNotificationsPage() {
                     </div>
                     
                     <div>
-                        <div className="flex justify-between items-center mb-2 mt-6">
-                            <div className="flex gap-2">
+                        <div className="flex items-center justify-between mb-2 mt-6">
+                            <div className="flex flex-row-reverse gap-2">
                                 <Button size="sm" variant="outline" onClick={() => handleBulkStreamSettingChange('onStreamOffline', false)}>כבה הכל</Button>
                                 <Button size="sm" variant="outline" onClick={() => handleBulkStreamSettingChange('onStreamOffline', true)}>הפעל הכל</Button>
                             </div>
@@ -268,7 +275,7 @@ export default function ClientNotificationsPage() {
                         <Separator />
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-3">
                            {streams.map(stream => (
-                                <div key={`offline-${stream.name}`} className="flex items-center justify-end gap-2 p-2 border rounded-md">
+                                <div key={`offline-${stream.name}`} className="flex items-center justify-between gap-3 p-2 border rounded-md">
                                      <Label htmlFor={`offline-${stream.name}`} className="flex-grow text-right truncate pr-1">{stream.name}</Label>
                                     <Switch id={`offline-${stream.name}`} checked={!!settings.onStreamOffline?.[stream.name]} onCheckedChange={(checked) => handleStreamSettingChange('onStreamOffline', stream.name, checked)} />
                                 </div>
@@ -280,18 +287,18 @@ export default function ClientNotificationsPage() {
             </Card>
 
             <Card>
-                <CardHeader><CardTitle className="flex items-center justify-end gap-2"><User className="h-5 w-5"/>התראות חשבון ומערכת</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-md">
+                <CardHeader className="text-right"><CardTitle style={{ marginLeft: "auto", marginRight: 0, direction: "rtl", justifyContent: "flex-start" }} className="flex items-center gap-2 w-fit text-right"><User className="h-5 w-5"/>התראות חשבון ומערכת</CardTitle></CardHeader>
+                <CardContent className="space-y-3 text-right">
+                    <div className="flex flex-row-reverse items-center justify-between p-3 border rounded-md">
                         <Switch id="sub-ending" checked={!!settings.onSubscriptionEnding} onCheckedChange={(checked) => handleSettingChange('onSubscriptionEnding', checked)} />
                         <Label htmlFor="sub-ending">קבל התראה 7 ימים לפני סיום המנוי</Label>
                     </div>
-                     <div className="flex items-center justify-between p-3 border rounded-md">
+                     <div className="flex flex-row-reverse items-center justify-between p-3 border rounded-md">
                         <Switch id="new-stream" checked={!!settings.onNewStreamAdded} onCheckedChange={(checked) => handleSettingChange('onNewStreamAdded', checked)} />
                         <Label htmlFor="new-stream">קבל התראה כאשר מנהל מוסיף לי שידור חדש</Label>
                     </div>
                     {client?.permissions.canCreateViewers && (
-                         <div className="flex items-center justify-between p-3 border rounded-md">
+                         <div className="flex flex-row-reverse items-center justify-between p-3 border rounded-md">
                             <Switch id="viewer-request" checked={!!settings.onViewerRequest} onCheckedChange={(checked) => handleSettingChange('onViewerRequest', checked)} />
                             <Label htmlFor="viewer-request">קבל התראה על בקשת גישה חדשה מצופה</Label>
                         </div>
@@ -300,16 +307,16 @@ export default function ClientNotificationsPage() {
             </Card>
 
             <Card>
-                <CardHeader><CardTitle className="flex items-center justify-end gap-2"><Settings className="h-5 w-5"/>התראות שידורים יוצאים (Push)</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                     <div className="flex items-center justify-between p-3 border rounded-md">
+                <CardHeader className="text-right"><CardTitle style={{ marginLeft: "auto", marginRight: 0, direction: "rtl", justifyContent: "flex-start" }} className="flex items-center gap-2 w-fit text-right"><Settings className="h-5 w-5"/>התראות שידורים יוצאים (Push)</CardTitle></CardHeader>
+                <CardContent className="space-y-3 text-right">
+                     <div className="flex flex-row-reverse items-center justify-between p-3 border rounded-md">
                         <Switch id="push-start" checked={!!settings.onPushStart} onCheckedChange={(checked) => handleSettingChange('onPushStart', checked)} />
                         <Label htmlFor="push-start">התראה כאשר מתחיל שידור יוצא (לפייסבוק, יוטיוב וכו')</Label>
                     </div>
                 </CardContent>
             </Card>
 
-            <div className="flex justify-start">
+            <div className="flex justify-end">
                  <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                     <Save className="ml-2 h-4 w-4" />

@@ -92,7 +92,7 @@
     @apply block mb-4 border rounded-lg p-4;
   }
   .responsive-table td {
-    @apply flex justify-between items-center text-right py-2 border-b border-dashed border-border/50;
+    @apply flex flex-row-reverse justify-between items-center text-right py-2 border-b border-dashed border-border/50;
   }
   .responsive-table td:last-child {
     @apply border-b-0;
@@ -469,3 +469,77 @@ main {
   box-sizing: border-box;
 }
 
+
+
+/* Requests page RTL table fix */
+.requests-rtl-table {
+  direction: rtl;
+}
+
+.requests-rtl-table th {
+  text-align: center !important;
+}
+
+.requests-rtl-table td {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+.requests-rtl-table td > div {
+  justify-content: flex-start !important;
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+
+/* Admin Multiview header RTL layout */
+.admin-multiview-page > div:nth-of-type(2) {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 3rem !important;
+}
+
+.admin-multiview-page > div:nth-of-type(2) > div:first-child {
+  text-align: right !important;
+  margin-left: auto !important;
+}
+
+.admin-multiview-page > div:nth-of-type(2) > div:last-child {
+  justify-content: flex-start !important;
+  flex-shrink: 0 !important;
+}
+
+
+/* Client viewers table RTL fix */
+.viewers-rtl-table th {
+  text-align: center !important;
+}
+
+.viewers-rtl-table td {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+.viewers-rtl-table td > div {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+
+/* Premium Client Mission Control */
+.client-mission-control {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 35%),
+    radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.10), transparent 32%);
+}
+
+.client-mission-control * {
+  scroll-behavior: smooth;
+}
+
+.client-mission-control .group:hover img,
+.client-mission-control .group:hover iframe {
+  transform: scale(1.02);
+}

@@ -1,0 +1,201 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { Loader2, Tv, AlertTriangle } from 'lucide-react';
+import { getStreams, getFlussonicConnectionDetails, type FlussonicStream } from '@/services/flussonic';
+import { getAndConsumeMultiviewSettings } from '@/services/multiview-tokens';
+import { type MultiviewSettings } from '@/services/users';
+import { getClientById } from '@/services/clients';
+import { Logo } from '@/components/logo';
+
+const VideoPlayer = ({ streamName, host }: { streamName: string; host: string }) => {
+  if (!host) {
+    return <div className="flex h-full w-full items-center justify-center bg-black"><Loader2 className="h-6 w-6 animate-spin text-cyan-300" /></div>;
+  }
+
+  const videoSrc =
+    'https://' +
+    host +
+    '/' +
+    streamName +
+    '/embed.html?proto=hls&dvr=false&muted=true&autoplay=true&controls=false&chromeless=true&quality=lowest';
+
+  return <iframe src={videoSrc} allowFullScreen allow="autoplay" className="h-full w-full border-0 bg-black" />;
+};
+
+const LoadingScreen = () => (
+  <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+    <Logo className="mb-8 h-24 w-48" />
+    <Loader2 className="h-12 w-12 animate-spin text-cyan-300" />
+    <p className="mt-4 text-lg">טוען קיר מסכים...</p>
+  </div>
+);
+
+function MultiviewPlayerContent() {
+  const searchParams = useSearchParams();
+
+  const [settings, setSettings] = useState<MultiviewSettings | null>(null);
+  const [publicHost, setPublicHost] = useState('');
+  const [streamsStatus, setStreamsStatus] = useState<Record<string, string>>({});
+  const [allowedNames, setAllowedNames] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const requestIdRef = useRef<string | null>(null);
+  const clientIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const requestId = searchParams.get('reqId');
+    requestIdRef.current = requestId;
+
+    if (!requestId) {
+      setError('מזהה בקשה לא סופק. לא ניתן לטעון את הנגן.');
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOnce = async () => {
+      try {
+        const cacheKey = 'multiview-settings-' + requestId;
+        const cached = sessionStorage.getItem(cacheKey);
+
+        const fetchedSettings: MultiviewSettings | null = cached
+          ? JSON.parse(cached)
+          : await getAndConsumeMultiviewSettings(requestId);
+
+        if (!fetchedSettings) {
+          setError('לא ניתן היה לטעון את הגדרות הצפייה.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!cached) {
+          sessionStorage.setItem(cacheKey, JSON.stringify(fetchedSettings));
+        }
+
+        clientIdRef.current = fetchedSettings.clientId || null;
+
+        const connection = await getFlussonicConnectionDetails();
+
+        if (cancelled) return;
+
+        setSettings(fetchedSettings);
+        setPublicHost(connection.publicHost);
+        setIsLoading(false);
+      } catch (err) {
+        console.error(err);
+        setError('שגיאה בטעינת קיר המסכים.');
+        setIsLoading(false);
+      }
+    };
+
+    loadOnce();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const allStreams = await getStreams().catch(() => [] as FlussonicStream[]);
+
+        const statusMap: Record<string, string> = {};
+        allStreams.forEach((stream) => {
+          statusMap[stream.name] = stream.status;
+        });
+
+        setStreamsStatus(statusMap);
+
+        const clientId = clientIdRef.current;
+
+        if (!clientId) {
+          setAllowedNames(settings?.selectedStreams || []);
+          return;
+        }
+
+        const client = await getClientById(clientId);
+
+        if (!client) {
+          setAllowedNames([]);
+          return;
+        }
+
+        if (client.permissions?.hasAllStreamsAccess) {
+          setAllowedNames(allStreams.map((stream) => stream.name));
+        } else {
+          setAllowedNames(Object.keys(client.permissions?.allowedStreams || {}));
+        }
+      } catch (err) {
+        console.error('refresh error:', err);
+      }
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [settings]);
+
+  if (isLoading) return <LoadingScreen />;
+
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+        <AlertTriangle className="h-12 w-12 text-red-500" />
+        <h1 className="mt-4 text-2xl font-bold">שגיאה</h1>
+        <p className="mt-2 text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  const onlineStreams = allowedNames.filter((name) => streamsStatus[name] === 'online');
+
+  if (onlineStreams.length === 0) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
+        <Tv className="h-12 w-12 text-zinc-600" />
+        <h1 className="mt-4 text-2xl font-bold">אין כרגע שידורים פעילים</h1>
+        <p className="mt-2 text-sm text-zinc-500">הקיר יתעדכן לבד כשערוץ מורשה יחזור ללייב.</p>
+      </div>
+    );
+  }
+
+  const wallSize =
+    onlineStreams.length <= 4 ? 2 :
+    onlineStreams.length <= 9 ? 3 :
+    onlineStreams.length <= 16 ? 4 :
+    onlineStreams.length <= 25 ? 5 :
+    onlineStreams.length <= 36 ? 6 :
+    onlineStreams.length <= 49 ? 7 : 8;
+
+  return (
+    <main
+      className="grid h-screen w-screen overflow-hidden bg-black"
+      style={{
+        gridTemplateColumns: 'repeat(' + wallSize + ', minmax(0, 1fr))',
+        gridTemplateRows: 'repeat(' + wallSize + ', minmax(0, 1fr))',
+        gap: '1px',
+        padding: '1px',
+      }}
+    >
+      {onlineStreams.map((name) => (
+        <div key={name} className="relative h-full w-full overflow-hidden bg-black">
+          <VideoPlayer streamName={name} host={publicHost} />
+        </div>
+      ))}
+    </main>
+  );
+}
+
+export default function MultiviewPlayerPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <MultiviewPlayerContent />
+    </Suspense>
+  );
+}

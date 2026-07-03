@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getWeatherForBroadcastTeams, type CityWeather } from "@/services/weather";
 import {
   Activity,
   AlertTriangle,
@@ -154,6 +158,33 @@ export function ActivityFeed({
 }
 
 export function WeatherStrip() {
+  const [weather, setWeather] = useState<CityWeather[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadWeather() {
+      try {
+        const data = await getWeatherForBroadcastTeams();
+        if (mounted) {
+          setWeather(data);
+          setError(false);
+        }
+      } catch {
+        if (mounted) setError(true);
+      }
+    }
+
+    loadWeather();
+    const interval = window.setInterval(loadWeather, 10 * 60 * 1000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   return (
     <section className="admin-glass-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
@@ -161,11 +192,19 @@ export function WeatherStrip() {
           <CloudSun className="h-5 w-5 text-yellow-300" />
           מזג אוויר לצוותי שידור
         </div>
+
         <div className="flex flex-wrap gap-4 text-slate-300">
-          <span>ירושלים — לא מחובר</span>
-          <span>תל אביב — לא מחובר</span>
-          <span>חיפה — לא מחובר</span>
-          <span className="text-slate-500">חיבור API יתבצע בשלב נפרד</span>
+          {weather.length > 0 ? (
+            weather.map((item) => (
+              <span key={item.city}>
+                {item.city} — {item.temperature}° · רוח {item.windSpeed} קמ״ש
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-500">
+              {error ? "לא ניתן לטעון מזג אוויר" : "טוען מזג אוויר..."}
+            </span>
+          )}
         </div>
       </div>
     </section>

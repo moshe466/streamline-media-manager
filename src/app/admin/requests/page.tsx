@@ -201,7 +201,7 @@ export default function AdminRequestsPage() {
         <div className="p-4 sm:p-6 lg:p-8 space-y-8 text-right">
             <div className="flex items-center justify-between">
                 <div></div>
-                <div className="space-y-2">
+                <div className="space-y-2 text-right mr-0 ml-auto">
                     <h1 className="text-3xl font-bold tracking-tight">ניהול בקשות גישה</h1>
                     <p className="text-muted-foreground">
                        אשר או דחה בקשות גישה וצפה בפעילות המערכת.
@@ -211,21 +211,21 @@ export default function AdminRequestsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center justify-end gap-2">
+                    <CardTitle className="flex items-center !justify-end gap-2 w-full !text-right">
                         בקשות הממתינות לטיפול המנהל
                         <MailQuestion className="h-5 w-5" />
                     </CardTitle>
-                    <CardDescription>אלו הן בקשות להצטרפות לקוחות חדשים או חידוש מנוי של לקוחות קיימים.</CardDescription>
+                    <CardDescription className="text-right">אלו הן בקשות להצטרפות לקוחות חדשים או חידוש מנוי של לקוחות קיימים.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table className="responsive-table">
+                    <Table dir="rtl" className="responsive-table requests-rtl-table">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="text-right w-[180px]">פעולות</TableHead>
-                                <TableHead className="text-right">סטטוס</TableHead>
-                                <TableHead className="text-right">זמן בקשה</TableHead>
-                                <TableHead className="text-right">סוג</TableHead>
-                                <TableHead className="text-right">מבקש</TableHead>
+                                <TableHead className="text-center">מבקש</TableHead>
+                                <TableHead className="text-center">סוג</TableHead>
+                                <TableHead className="text-center">זמן בקשה</TableHead>
+                                <TableHead className="text-center">סטטוס</TableHead>
+                                <TableHead className="text-center w-[180px]">פעולות</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -236,7 +236,14 @@ export default function AdminRequestsPage() {
                             ) : adminRequests.length > 0 ? (
                                 adminRequests.map(req => (
                                     <TableRow key={req.id}>
-                                        <TableCell data-label="פעולות"><div className="flex items-center justify-end gap-2">
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="מבקש"><div style={{ justifyContent: "flex-end", textAlign: "right", direction: "rtl" }} className="flex items-center gap-2 w-full">
+                                            {req.requestorType === 'new_client_questionnaire' && (<TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-blue-400 cursor-pointer" /></TooltipTrigger><TooltipContent className="text-right max-w-sm" side="top"><h4 className="font-bold border-b mb-2 pb-1">פרטי הבקשה מהטופס:</h4>{renderQuestionnaireChanges(req)}</TooltipContent></Tooltip></TooltipProvider>)}
+                                            <span>{req.requestorNickname}</span>
+                                        </div></TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="סוג"><div style={{ justifyContent: "flex-end", textAlign: "right", direction: "rtl" }} className="flex items-center gap-2 w-full"><span>{getRequestorTypeText(req.requestorType)}</span>{getRequestorTypeIcon(req.requestorType)}</div></TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="זמן בקשה">{isClient && formatDistanceToNow(new Date(req.requestedAt), { addSuffix: true, locale: he })}</TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="סטטוס"><Badge variant={getStatusVariant(req.status)}>{getStatusText(req.status)}</Badge></TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="פעולות"><div style={{ justifyContent: "flex-end", textAlign: "right", direction: "rtl" }} className="flex items-center gap-2 w-full">
                                             {req.status === 'pending' && (
                                                 <>
                                                     <AlertDialog><AlertDialogTrigger asChild><Button size="sm" variant="destructive" disabled={!!isProcessing}><X className="h-4 w-4 ml-2"/>דחה</Button></AlertDialogTrigger><AlertDialogContent className="text-right"><AlertDialogHeader><AlertDialogTitle>לדחות את הבקשה?</AlertDialogTitle><AlertDialogDescription>הפעולה תסמן את הבקשה כדחויה ותאפשר למחוק אותה. היא תימחק אוטומטית לאחר 5 דקות.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>ביטול</AlertDialogCancel><AlertDialogAction onClick={() => handleResolve(req.id, 'reject')} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">כן, דחה בקשה</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
@@ -248,13 +255,6 @@ export default function AdminRequestsPage() {
                                             )}
                                             {req.status === 'approved' && <span className="text-xs text-muted-foreground">טופל</span>}
                                         </div></TableCell>
-                                        <TableCell data-label="סטטוס"><Badge variant={getStatusVariant(req.status)}>{getStatusText(req.status)}</Badge></TableCell>
-                                        <TableCell data-label="זמן בקשה">{isClient && formatDistanceToNow(new Date(req.requestedAt), { addSuffix: true, locale: he })}</TableCell>
-                                        <TableCell data-label="סוג"><div className="flex items-center justify-end gap-2"><span>{getRequestorTypeText(req.requestorType)}</span>{getRequestorTypeIcon(req.requestorType)}</div></TableCell>
-                                        <TableCell data-label="מבקש"><div className="flex items-center justify-end gap-2">
-                                            {req.requestorType === 'new_client_questionnaire' && (<TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-blue-400 cursor-pointer" /></TooltipTrigger><TooltipContent className="text-right max-w-sm" side="top"><h4 className="font-bold border-b mb-2 pb-1">פרטי הבקשה מהטופס:</h4>{renderQuestionnaireChanges(req)}</TooltipContent></Tooltip></TooltipProvider>)}
-                                            <span>{req.requestorNickname}</span>
-                                        </div></TableCell>
                                     </TableRow>
                                 ))
                             ) : (<TableRow><TableCell colSpan={5} className="h-24 text-center">אין בקשות ממתינות במערכת.</TableCell></TableRow>)}
@@ -265,20 +265,20 @@ export default function AdminRequestsPage() {
 
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center justify-end gap-2">
+                    <CardTitle className="flex items-center !justify-end gap-2 w-full !text-right">
                        פעילות בקשות צופים (למעקב)
                         <Eye className="h-5 w-5" />
                     </CardTitle>
-                    <CardDescription>טבלה זו מציגה את כל הבקשות שצופים שולחים ללקוחות השונים, ומאפשרת לך לעקוב אחר הפעילות.</CardDescription>
+                    <CardDescription className="text-right">טבלה זו מציגה את כל הבקשות שצופים שולחים ללקוחות השונים, ומאפשרת לך לעקוב אחר הפעילות.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table className="responsive-table">
+                    <Table dir="rtl" className="responsive-table requests-rtl-table">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="text-right">סטטוס</TableHead>
-                                <TableHead className="text-right">זמן בקשה</TableHead>
-                                <TableHead className="text-right">שם הלקוח</TableHead>
-                                <TableHead className="text-right">שם הצופה</TableHead>
+                                <TableHead className="text-center">סטטוס</TableHead>
+                                <TableHead className="text-center">זמן בקשה</TableHead>
+                                <TableHead className="text-center">שם הלקוח</TableHead>
+                                <TableHead className="text-center">שם הצופה</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -289,10 +289,10 @@ export default function AdminRequestsPage() {
                             ) : clientViewerRequests.length > 0 ? (
                                 clientViewerRequests.map(req => (
                                     <TableRow key={req.id}>
-                                        <TableCell data-label="סטטוס"><Badge variant={getStatusVariant(req.status)}>{getStatusText(req.status)}</Badge></TableCell>
-                                        <TableCell data-label="זמן בקשה">{isClient && formatDistanceToNow(new Date(req.requestedAt), { addSuffix: true, locale: he })}</TableCell>
-                                        <TableCell data-label="שם הלקוח">{req.clientId}</TableCell>
-                                        <TableCell data-label="שם הצופה">{req.requestorNickname}</TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="סטטוס"><Badge variant={getStatusVariant(req.status)}>{getStatusText(req.status)}</Badge></TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="זמן בקשה">{isClient && formatDistanceToNow(new Date(req.requestedAt), { addSuffix: true, locale: he })}</TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="שם הלקוח">{req.clientId}</TableCell>
+                                        <TableCell style={{ textAlign: "right", direction: "rtl" }} className="align-middle" data-label="שם הצופה">{req.requestorNickname}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (

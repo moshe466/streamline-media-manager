@@ -83,7 +83,7 @@ export function AdminDashboardV3({
 
       <section className="grid gap-6 grid-cols-1 grid-cols-1">
         <div className="admin-glass-card p-5">
-          <div className="flex items-center justify-between gap-4 mb-5">
+          <div className="flex flex-row-reverse items-center justify-between gap-4 mb-5">
             <Button asChild variant="outline" size="sm">
               <Link href="/admin/streams">
                 <ExternalLink className="ml-2 h-4 w-4" />
@@ -91,7 +91,7 @@ export function AdminDashboardV3({
               </Link>
             </Button>
 
-            <div>
+            <div className="text-right mr-0 ml-auto">
               <h2 className="text-xl font-bold text-cyan-100">שידורים חיים וניטור ערוצים</h2>
               <p className="text-sm text-slate-500">תצוגת חדר בקרה לערוצי השידור המרכזיים</p>
             </div>

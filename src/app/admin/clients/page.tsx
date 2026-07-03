@@ -603,7 +603,8 @@ function ClientPageContent() {
           </DialogContent>
         </Dialog>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-4 items-start">
+          <div className="justify-self-start pt-14">
           <Dialog
             open={dialogOpen}
             onOpenChange={(isOpen) => {
@@ -751,8 +752,9 @@ function ClientPageContent() {
               </Tabs>
             </DialogContent>
           </Dialog>
+          </div>
 
-          <div className="space-y-2 text-left">
+          <div className="space-y-2 text-right justify-self-end">
             <h1 className="text-3xl font-bold tracking-tight">ניהול לקוחות</h1>
             <p className="text-muted-foreground">הוספה, עריכה או הסרה של לקוחות.</p>
           </div>

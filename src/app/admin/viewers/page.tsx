@@ -281,7 +281,7 @@ function AdminViewersPageComponent() {
                 <div className="py-4"><ScrollArea className="h-72 w-full rounded-md border p-4"><div className="space-y-4">
                     {availableStreams.map((stream) => (
                         <div key={stream.name}><h4 className="font-semibold text-right mb-2">{stream.name}</h4><div className="space-y-2 pr-4">
-                            <div className="flex items-center justify-between"><Checkbox id={`live-${stream.name}`} checked={permissionState[stream.name]?.canWatchLive || false} onCheckedChange={(checked) => handlePermissionChange(stream.name, 'canWatchLive', !!checked)} /><Label htmlFor={`live-${stream.name}`} className="flex-1 mr-4 flex items-center justify-end gap-2">צפייה בשידור חי <Tv className="h-4 w-4 text-green-500" /></Label></div>
+                            <div className="flex flex-row-reverse items-start justify-between"><Checkbox id={`live-${stream.name}`} checked={permissionState[stream.name]?.canWatchLive || false} onCheckedChange={(checked) => handlePermissionChange(stream.name, 'canWatchLive', !!checked)} /><Label htmlFor={`live-${stream.name}`} className="flex-1 mr-4 flex items-center justify-end gap-2">צפייה בשידור חי <Tv className="h-4 w-4 text-green-500" /></Label></div>
                             <div className="flex items-center justify-between"><Checkbox id={`dvr-${stream.name}`} checked={permissionState[stream.name]?.canWatchDVR || false} onCheckedChange={(checked) => handlePermissionChange(stream.name, 'canWatchDVR', !!checked)} /><Label htmlFor={`dvr-${stream.name}`} className="flex-1 mr-4 flex items-center justify-end gap-2">צפייה ב-DVR <Video className="h-4 w-4 text-blue-500" /></Label></div>
                             <div className="flex items-center justify-between"><Checkbox id={`mcr-${stream.name}`} checked={permissionState[stream.name]?.canWatchMCR || false} onCheckedChange={(checked) => handlePermissionChange(stream.name, 'canWatchMCR', !!checked)} /><Label htmlFor={`mcr-${stream.name}`} className="flex-1 mr-4 flex items-center justify-end gap-2">צפייה ב-MCR <SlidersHorizontal className="h-4 w-4 text-purple-500" /></Label></div>
                         </div>{availableStreams.indexOf(stream) < availableStreams.length - 1 && <Separator className="mt-4" />}</div>
@@ -291,16 +291,15 @@ function AdminViewersPageComponent() {
             </DialogContent>
         </Dialog>
 
-       <div className="flex items-center justify-between">
-            <div></div>
-            <div className="space-y-2 text-right"><h1 className="text-3xl font-bold tracking-tight">רשימת צופים (לפי לקוח)</h1><p className="text-muted-foreground">סקירה כללית של כל הצופים במערכת, מקובצים לפי הלקוח שיצר אותם.</p></div>
+       <div className="flex items-start justify-end">
+            <div className="space-y-2 text-right mr-0 ml-auto"><h1 className="text-3xl font-bold tracking-tight">רשימת צופים (לפי לקוח)</h1><p className="text-muted-foreground">סקירה כללית של כל הצופים במערכת, מקובצים לפי הלקוח שיצר אותם.</p></div>
         </div>
       
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-end gap-2">כל הצופים<UserCheck className="h-5 w-5" /></CardTitle>
-          <CardDescription>לחץ על שם לקוח כדי להציג או להסתיר את רשימת הצופים שלו.</CardDescription>
-           <div className="relative pt-2"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="חיפוש לפי שם לקוח או פרטי צופה..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
+          <CardTitle className="flex items-center justify-end gap-2 mr-0 ml-auto"><UserCheck className="h-5 w-5" />כל הצופים</CardTitle>
+          <CardDescription className="text-right">לחץ על שם לקוח כדי להציג או להסתיר את רשימת הצופים שלו.</CardDescription>
+           <div className="relative pt-2 ml-0 mr-auto max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="חיפוש לפי שם לקוח או פרטי צופה..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
         </CardHeader>
         <CardContent>
           {filteredData.length > 0 ? (

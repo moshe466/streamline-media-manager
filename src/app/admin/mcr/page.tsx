@@ -34,7 +34,7 @@ export default function AdminMcrPage() {
         <div className="space-y-8 text-right p-4 sm:p-6 lg:p-8">
             <div className="flex items-center justify-between">
                 <div></div>
-                <div className="space-y-2 text-right">
+                <div className="space-y-2 text-right mr-0 ml-auto">
                     <Skeleton className="h-10 w-64" />
                     <Skeleton className="h-4 w-80" />
                 </div>
@@ -54,7 +54,7 @@ export default function AdminMcrPage() {
     <div className="space-y-8 text-right p-4 sm:p-6 lg:p-8 h-full flex flex-col">
        <div className="flex items-center justify-between">
             <div></div>
-            <div className="space-y-2 text-right">
+            <div className="space-y-2 text-right mr-0 ml-auto">
                 <h1 className="text-3xl font-bold tracking-tight">קונטרול NCR - מנהל</h1>
                 <p className="text-muted-foreground">
                     תצוגה חיה של כל השידורים במערכת.

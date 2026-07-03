@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getViewerById } from '@/services/viewers-auth';
-import { getStreams, type FlussonicStream } from '@/services/flussonic';
+import { getStreams, getFlussonicConnectionDetails, type FlussonicStream } from '@/services/flussonic';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { VideoOff, Wifi } from 'lucide-react';
 import { type Client } from '@/services/clients';
-import { StreamCardImage } from '@/components/dashboard/stream-card-image';
+
+
+function ViewerLivePreview({ streamName, host }: { streamName: string; host: string }) {
+    if (!host) {
+        return (
+            <div className="w-full h-full bg-black flex items-center justify-center">
+                <p className="text-xs text-muted-foreground">טוען נגן...</p>
+            </div>
+        );
+    }
+
+    const videoSrc = `https://${host}/${streamName}/embed.html?proto=mse&dvr=false&realtime=true&muted=true&autoplay=true&controls=false&chromeless=true&liveSyncDurationCount=1&quality=lowest`;
+
+    return (
+        <iframe
+            src={videoSrc}
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay"
+            className="w-full h-full border-0 bg-black"
+        />
+    );
+}
 
 export default function ViewerLiveStreamsPage() {
     const params = useParams();
@@ -22,6 +46,7 @@ export default function ViewerLiveStreamsPage() {
     const [liveStreams, setLiveStreams] = useState<FlussonicStream[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [client, setClient] = useState<Client | null>(null);
+    const [publicHost, setPublicHost] = useState('');
 
     const fetchData = useCallback(async () => {
         try {
@@ -60,6 +85,7 @@ export default function ViewerLiveStreamsPage() {
 
     useEffect(() => {
         fetchData();
+        getFlussonicConnectionDetails().then(details => setPublicHost(details.publicHost));
         const intervalId = setInterval(fetchData, 30000); 
         return () => clearInterval(intervalId);
     }, [fetchData]);
@@ -105,7 +131,7 @@ export default function ViewerLiveStreamsPage() {
                                 <Card key={stream.name} className="overflow-hidden flex flex-col group text-right border-border/50 hover:border-primary transition-colors">
                                     <CardHeader className="p-0 relative">
                                         <div className="aspect-video relative overflow-hidden bg-muted">
-                                            <StreamCardImage stream={stream} client={client} />
+                                            <ViewerLivePreview streamName={stream.name} host={publicHost} />
                                             <div className="absolute top-2 right-2 flex items-center gap-1 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg">
                                                 <Wifi className="h-3 w-3" />
                                                 LIVE
